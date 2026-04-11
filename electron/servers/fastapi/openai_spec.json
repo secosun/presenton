@@ -1,0 +1,378 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FastAPI",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/ppt/presentation/generate": {
+      "post": {
+        "tags": ["Presentation"],
+        "summary": "Returns base URL of generated presentation's PDF or PPTX.",
+        "operationId": "generate_presentation",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_generate_presentation_api_api_v1_ppt_presentation_generate_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresentationPathAndEditPath"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ppt/presentation/materialize": {
+      "post": {
+        "tags": ["Presentation"],
+        "summary": "Materialize a presentation from structured slides (no server-side LLM).",
+        "operationId": "materialize_presentation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterializePresentationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresentationPathAndEditPath"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "409": {
+            "description": "presentation_id already exists"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Template service (Next.js) unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/ppt/template-management/summary": {
+      "get": {
+        "tags": ["template-management"],
+        "summary": "Get all presentations with layout counts",
+        "description": "Returns a list of extra custom templates available for presenation creation.",
+        "operationId": "templates_list",
+        "responses": {
+          "200": {
+            "description": "Presentations summary retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPresentationSummaryResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_generate_presentation_api_api_v1_ppt_presentation_generate_post": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "The content for generating the presentation"
+          },
+          "n_slides": {
+            "type": "integer",
+            "title": "N Slides",
+            "default": 8
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": "English"
+          },
+          "template": {
+            "type": "string",
+            "title": "Template",
+            "default": "general"
+          },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "binary"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files"
+          },
+          "export_as": {
+            "type": "string",
+            "enum": ["pptx", "pdf"],
+            "title": "Export As",
+            "default": "pptx"
+          }
+        },
+        "type": "object",
+        "required": ["content"],
+        "title": "Body_generate_presentation_api_api_v1_ppt_presentation_generate_post"
+      },
+      "MaterializeSlideItem": {
+        "type": "object",
+        "required": ["layout_id", "content"],
+        "properties": {
+          "layout_id": { "type": "string" },
+          "content": { "type": "object", "additionalProperties": true },
+          "outline_summary": { "type": "string" },
+          "speaker_note": { "type": "string" },
+          "html_content": { "type": "string" },
+          "properties": { "type": "object", "additionalProperties": true }
+        },
+        "title": "MaterializeSlideItem"
+      },
+      "MaterializePresentationRequest": {
+        "type": "object",
+        "required": ["template", "slides", "export_as"],
+        "properties": {
+          "schema_version": { "type": "string" },
+          "template": { "type": "string" },
+          "slides": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/MaterializeSlideItem" }
+          },
+          "export_as": { "type": "string", "enum": ["pptx", "pdf"] },
+          "language": { "type": "string", "default": "English" },
+          "title": { "type": "string" },
+          "presentation_id": { "type": "string", "format": "uuid" },
+          "content": { "type": "string", "default": "" },
+          "instructions": { "type": "string" },
+          "tone": { "type": "string" },
+          "verbosity": { "type": "string" },
+          "theme": { "type": "object", "additionalProperties": true }
+        },
+        "title": "MaterializePresentationRequest"
+      },
+      "PresentationPathAndEditPath": {
+        "properties": {
+          "presentation_id": {
+            "type": "string",
+            "title": "Presentation Id"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "edit_path": {
+            "type": "string",
+            "title": "Edit Path"
+          }
+        },
+        "type": "object",
+        "required": ["presentation_id", "path", "edit_path"],
+        "title": "PresentationPathAndEditPath"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      },
+      "GetPresentationSummaryResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "presentations": {
+            "items": {
+              "$ref": "#/components/schemas/PresentationSummary"
+            },
+            "type": "array",
+            "title": "Presentations"
+          },
+          "total_presentations": {
+            "type": "integer",
+            "title": "Total Presentations"
+          },
+          "total_layouts": {
+            "type": "integer",
+            "title": "Total Layouts"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": ["success", "presentations", "total_presentations", "total_layouts"],
+        "title": "GetPresentationSummaryResponse"
+      },
+      "PresentationSummary": {
+        "properties": {
+          "presentation_id": {
+            "type": "string",
+            "title": "Presentation Id"
+          },
+          "layout_count": {
+            "type": "integer",
+            "title": "Layout Count"
+          },
+          "last_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Updated At"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template"
+          }
+        },
+        "type": "object",
+        "required": ["presentation_id", "layout_count"],
+        "title": "PresentationSummary"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": false
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          }
+        },
+        "type": "object",
+        "required": ["detail"],
+        "title": "ErrorResponse"
+      }
+    }
+  }
+}
