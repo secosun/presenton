@@ -148,6 +148,26 @@ export PRESENTON_API_BASE_URL="http://192.168.3.58:5000"
 }
 ```
 
+**部署架构说明**：
+```
+┌─────────────────┐      MCP (8001)     ┌──────────────────┐
+│  外部客户端      │◄──────────────────►│  MCP Server      │
+│  (Cursor 等)     │                     │  (容器内)        │
+└─────────────────┘                     └────────┬─────────┘
+                                                 │
+                                                 │ HTTP :8000
+                                                 ▼
+                                        ┌──────────────────┐
+                                        │  Nginx :80       │
+                                        │  (端口映射 5000)  │
+                                        └──────────────────┘
+```
+
+注意事项:
+- MCP Server 需要通过 `PRESENTON_API_BASE_URL` 指定 API 地址
+- 如果 API 在容器内，使用 `http://localhost:8000` (Nginx 代理)
+- 如果 API 在外部，使用 `http://api-host:port`
+
 **Cursor 配置步骤**：
 1. 打开 Cursor Settings → MCP
 2. 点击 "Add MCP Server"
