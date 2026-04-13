@@ -2,12 +2,17 @@ import sys
 import argparse
 import asyncio
 import traceback
+import os
 
 import httpx
 from fastmcp import FastMCP
 import json
 
-with open("openai_spec.json", "r") as f:
+# Get the directory where the script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+openapi_spec_path = os.path.join(script_dir, "openai_spec.json")
+
+with open(openapi_spec_path, "r") as f:
     openapi_spec = json.load(f)
 
 
@@ -44,10 +49,10 @@ async def main():
 
         # Start the MCP server
         uvicorn_config = {"reload": True}
-        print(f"DEBUG: Starting MCP server on host=127.0.0.1, port={args.port}")
+        print(f"DEBUG: Starting MCP server on host=0.0.0.0, port={args.port}")
         await mcp.run_async(
             transport="http",
-            host="127.0.0.1",
+            host="0.0.0.0",
             port=args.port,
             uvicorn_config=uvicorn_config,
         )

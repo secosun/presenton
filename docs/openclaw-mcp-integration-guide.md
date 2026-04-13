@@ -38,13 +38,51 @@
 
 ### 2.1 启动 Presenton MCP Server
 
+**方式 1: 使用启动脚本（推荐）**
+
 ```bash
-# 方式 1: 直接运行（开发环境）
+# 启动 MCP Server（自动处理容器内进程）
+./scripts/start-mcp-server.sh
+```
+
+输出示例：
+```
+=== Presenton MCP Server Starter ===
+1. Stopping existing MCP server (if any)...
+2. Starting MCP server on port 8001...
+3. Verifying MCP server is running...
+SUCCESS: MCP server is running on port 8001
+
+=== Connection Info ===
+MCP SSE Endpoint: http://localhost:8001/mcp
+Transport: HTTP (SSE)
+
+=== OpenClaw/Cursor Configuration ===
+Add to your MCP settings:
+{
+  "mcpServers": {
+    "presenton": {
+      "url": "http://localhost:8001/mcp",
+      "transport": "http",
+      "name": "Presenton PPT Generator"
+    }
+  }
+}
+```
+
+**方式 2: 直接运行（开发环境）**
+
+```bash
 cd servers/fastapi
 python mcp_server.py --port 8001 --name "Presenton"
+```
 
-# 方式 2: Docker 环境
-docker exec presenton_development_1 python /app/servers/fastapi/mcp_server.py --port 8001
+**方式 3: Docker 容器内运行**
+
+```bash
+# 在容器内启动 MCP Server
+docker exec -d -w /app/servers/fastapi presenton_development_1 \
+  python /app/servers/fastapi/mcp_server.py --port 8001 --name "Presenton"
 ```
 
 **配置参数**:
@@ -52,6 +90,17 @@ docker exec presenton_development_1 python /app/servers/fastapi/mcp_server.py --
 |------|--------|------|
 | `--port` | 8001 | MCP Server 监听端口 |
 | `--name` | "Presenton API (OpenAPI)" | MCP 服务器名称 |
+
+**端口映射**：
+确保 `docker-compose.yml` 中包含 MCP 端口映射：
+```yaml
+services:
+  development:
+    ports:
+      - "5000:80"      # Presenton Web UI
+      - "1455:1455"    # OAuth callback
+      - "8001:8001"    # MCP Server
+```
 
 ### 2.2 OpenClaw MCP 配置
 
@@ -61,12 +110,30 @@ docker exec presenton_development_1 python /app/servers/fastapi/mcp_server.py --
 {
   "mcpServers": {
     "presenton": {
-      "url": "http://localhost:8001/sse",
+      "url": "http://localhost:8001/mcp",
       "transport": "http",
       "name": "Presenton PPT Generator"
     }
   }
 }
+```
+
+**Cursor 配置步骤**：
+1. 打开 Cursor Settings → MCP
+2. 点击 "Add MCP Server"
+3. 填入：
+   - Name: `Presenton`
+   - URL: `http://localhost:8001/mcp`
+   - Transport: `HTTP (SSE)`
+4. 保存后应显示为绿色连接状态
+
+**验证连接**：
+```bash
+# 测试 MCP endpoint
+curl http://localhost:8001/mcp \
+  -H "Accept: text/event-stream" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}},"id":1}'
 ```
 
 或Claude Code 配置 (`claude_desktop_config.json`):
