@@ -254,7 +254,11 @@ const result = await mcp.callTool('presenton', 'materialize_presentation', {
 import requests
 import json
 
-PRESENTON_API = "http://localhost:8000"
+# 外部访问（通过 Nginx 代理，推荐）
+PRESENTON_API = "http://host:5000"
+
+# 容器内访问
+# PRESENTON_API = "http://localhost:8000"
 
 # 步骤 1: 获取模板布局定义
 def get_template_layouts(template_name: str) -> dict:
@@ -347,7 +351,11 @@ if __name__ == "__main__":
 ```javascript
 const axios = require('axios');
 
-const PRESENTON_API = 'http://localhost:8000';
+// 外部访问（通过 Nginx 代理，推荐）
+const PRESENTON_API = 'http://host:5000';
+
+// 容器内访问
+// const PRESENTON_API = 'http://localhost:8000';
 
 async function generatePresentation() {
   try {
@@ -648,12 +656,15 @@ def clone_presentation(source_id: str, modifications: dict):
 # 1. 启动 Presenton 服务
 docker compose up development
 
-# 2. 启动 MCP Server
-python servers/fastapi/mcp_server.py --port 8001
+# 2. 启动 MCP Server（容器内）
+docker exec -d -w /app/servers/fastapi presenton_development_1 \
+  python /app/servers/fastapi/mcp_server.py --port 8001 --name "Presenton"
 
-# 3. 验证服务
-curl http://localhost:8000/api/v1/ppt/presentation/materialize -X OPTIONS
-curl http://localhost:8001/sse
+# 3. 验证服务（通过 Nginx 代理）
+curl http://localhost:5000/mcp \
+  -H "Accept: text/event-stream, application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"initialize","id":1}'
 ```
 
 ### 7.2 生产环境
@@ -661,32 +672,29 @@ curl http://localhost:8001/sse
 ```yaml
 # docker-compose.prod.yml
 services:
-  presenton-api:
-    image: presenton:latest
+  presenton:
+    image: ghcr.io/presenton/presenton:latest
     ports:
-      - "8000:80"
+      - "5000:80"      # Web UI + API + MCP（统一入口）
     environment:
       - DATABASE_URL=postgresql://...
       - OPENAI_API_KEY=sk-...
-  
-  presenton-mcp:
-    image: presenton:latest
-    command: python /app/servers/fastapi/mcp_server.py --port 8001
-    environment:
-      - PRESENTON_API_BASE_URL=http://presenton-api:8000
-    ports:
-      - "8001:8001"
-    depends_on:
-      - presenton-api
+    # MCP Server 在同一容器内启动
+    command: >
+      sh -c "python /app/servers/fastapi/mcp_server.py --port 8001 &
+             node /app/start.js"
 ```
+
+**说明**：生产环境只需开放 5000 端口，MCP 和 API 都通过 Nginx 代理访问。
 
 ### 7.3 环境变量
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `PRESENTON_API_BASE_URL` | `http://127.0.0.1:8000` | Presenton API 地址 |
-| `MCP_SERVER_PORT` | `8001` | MCP Server 端口 |
-| `MCP_SERVER_NAME` | `Presenton API (OpenAPI)` | MCP 服务器名称 |
+| `PRESENTON_API_BASE_URL` | `http://127.0.0.1:8000` | MCP 访问 Presenton API 的地址（容器内） |
+| `MCP_SERVER_PORT` | `8001` | MCP Server 监听端口（容器内） |
+
+**注意**：外部客户端通过 Nginx 访问 MCP，URL 为 `http://host:5000/mcp`。
 
 ---
 
