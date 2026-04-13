@@ -189,6 +189,18 @@ Run Presenton directly in your browser — no installation, no setup required. S
   </p>
   </blockquote>
 
+  <p>
+    <strong>Architecture:</strong> The default image runs
+    <strong>one container</strong> with Nginx on port 80, plus Next.js, FastAPI,
+    MCP, and optionally Ollama as separate processes. For routing and how they
+    relate, see
+    <a href="./docs/deployment-architecture.md"><code>docs/deployment-architecture.md</code></a>.
+    Compose service differences (<code>production</code> vs <code>development</code>):
+    <a href="./docs/docker-compose-environments.md"><code>docs/docker-compose-environments.md</code></a>.
+    Why PyTorch is pulled in (Docling for document upload parsing):
+    <a href="./docs/pytorch-docling.md"><code>docs/pytorch-docling.md</code></a>.
+  </p>
+
 #
 
 ### ⚙️ Deployment Configurations

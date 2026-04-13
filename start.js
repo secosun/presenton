@@ -170,22 +170,32 @@ const startServers = async () => {
     console.error("Next.js process failed to start:", err);
   });
 
-  const ollamaProcess = spawn("ollama", ["serve"], {
-    cwd: "/",
-    stdio: "inherit",
-    env: process.env,
-  });
+  const enableBundledOllama = process.env.ENABLE_OLLAMA !== "false";
+  let ollamaProcess = null;
+  if (enableBundledOllama) {
+    ollamaProcess = spawn("ollama", ["serve"], {
+      cwd: "/",
+      stdio: "inherit",
+      env: process.env,
+    });
+    ollamaProcess.on("error", (err) => {
+      console.error("Ollama process failed to start:", err);
+    });
+  } else {
+    console.log("Bundled Ollama disabled (ENABLE_OLLAMA=false); use external OLLAMA_URL if needed.");
+  }
 
-  ollamaProcess.on("error", (err) => {
-    console.error("Ollama process failed to start:", err);
-  });
-
-  // Keep the Node process alive until both servers exit
-  const exitCode = await Promise.race([
+  const exitWatchers = [
     new Promise((resolve) => fastApiProcess.on("exit", resolve)),
     new Promise((resolve) => nextjsProcess.on("exit", resolve)),
-    new Promise((resolve) => ollamaProcess.on("exit", resolve)),
-  ]);
+  ];
+  if (ollamaProcess) {
+    exitWatchers.push(
+      new Promise((resolve) => ollamaProcess.on("exit", resolve))
+    );
+  }
+
+  const exitCode = await Promise.race(exitWatchers);
 
   console.log(`One of the processes exited. Exit code: ${exitCode}`);
   process.exit(exitCode);
