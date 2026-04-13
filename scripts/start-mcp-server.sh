@@ -6,7 +6,12 @@ set -e
 CONTAINER_NAME="presenton_development_1"
 MCP_PORT=8001
 
+# Allow overriding the Presenton API base URL via environment variable
+# Default: container-internal API (Nginx on port 80, which proxies to FastAPI :8000)
+PRESENTON_API_BASE_URL="${PRESENTON_API_BASE_URL:-http://localhost:5000}"
+
 echo "=== Presenton MCP Server Starter ==="
+echo "Presenton API Base URL: $PRESENTON_API_BASE_URL"
 
 # Check if container is running
 if ! docker ps | grep -q "$CONTAINER_NAME"; then
@@ -20,7 +25,9 @@ docker exec $CONTAINER_NAME pkill -f "mcp_server.py" 2>/dev/null || true
 sleep 1
 
 echo "2. Starting MCP server on port $MCP_PORT..."
-docker exec -d -w /app/servers/fastapi $CONTAINER_NAME python /app/servers/fastapi/mcp_server.py --port $MCP_PORT --name "Presenton"
+docker exec -d -w /app/servers/fastapi \
+    -e PRESENTON_API_BASE_URL="$PRESENTON_API_BASE_URL" \
+    $CONTAINER_NAME python /app/servers/fastapi/mcp_server.py --port $MCP_PORT --name "Presenton"
 
 sleep 3
 

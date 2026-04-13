@@ -36,7 +36,10 @@ async def main():
         print(f"DEBUG: Parsed args - port={args.port}")
 
         # Create an HTTP client that the MCP server will use to call the API
-        api_client = httpx.AsyncClient(base_url="http://127.0.0.1:8000", timeout=60.0)
+        # Use PRESENTON_API_BASE_URL env var if set, otherwise default to container-internal API
+        presenton_api_url = os.environ.get("PRESENTON_API_BASE_URL", "http://127.0.0.1:8000")
+        print(f"DEBUG: Using Presenton API URL: {presenton_api_url}")
+        api_client = httpx.AsyncClient(base_url=presenton_api_url, timeout=60.0)
 
         # Build MCP server from OpenAPI
         print("DEBUG: Creating FastMCP server from OpenAPI spec...")

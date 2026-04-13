@@ -21,7 +21,7 @@
                                                  ▼
                                         ┌──────────────────┐
                                         │  Presenton API   │
-                                        │  (FastAPI :8000) │
+                                        │  (FastAPI :5000) │
                                         └──────────────────┘
 ```
 
@@ -42,6 +42,13 @@
 
 ```bash
 # 启动 MCP Server（自动处理容器内进程）
+./scripts/start-mcp-server.sh
+```
+
+**跨主机访问**（MCP 与 Presenton API 不在同一台机器）：
+```bash
+# 设置环境变量指定 Presenton API 地址
+export PRESENTON_API_BASE_URL="http://192.168.3.58:5000"
 ./scripts/start-mcp-server.sh
 ```
 
@@ -111,6 +118,29 @@ services:
   "mcpServers": {
     "presenton": {
       "url": "http://localhost:8001/mcp",
+      "transport": "http",
+      "name": "Presenton PPT Generator"
+    }
+  }
+}
+```
+
+**跨主机/跨网络配置**：
+
+如果 MCP Server 与 Presenton API 不在同一台机器，需要：
+
+1. 启动 MCP 时设置环境变量：
+```bash
+export PRESENTON_API_BASE_URL="http://192.168.3.58:5000"
+./scripts/start-mcp-server.sh
+```
+
+2. 客户端配置使用正确的 MCP 地址：
+```json
+{
+  "mcpServers": {
+    "presenton": {
+      "url": "http://192.168.3.58:8001/mcp",
       "transport": "http",
       "name": "Presenton PPT Generator"
     }
