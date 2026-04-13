@@ -71,8 +71,13 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
           setIsLoading(false);
         }
       } else if (route !== '/') {
-        router.push('/');
-        setLoadingToFalseAfterNavigatingTo('/');
+        // Allow access to pdf-maker page without LLM config (for PPTX export)
+        if (route === '/pdf-maker') {
+          setIsLoading(false);
+        } else {
+          router.push('/');
+          setLoadingToFalseAfterNavigatingTo('/');
+        }
       } else {
         setIsLoading(false);
       }

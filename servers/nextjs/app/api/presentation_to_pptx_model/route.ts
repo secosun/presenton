@@ -95,13 +95,55 @@ async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
 
   const page = await browser.newPage();
 
+  // Enable console logging for debugging
+  page.on("console", (msg) => {
+    console.log(`[Puppeteer Console] ${msg.type()}: ${msg.text()}`);
+  });
+  page.on("pageerror", (err) => {
+    console.error(`[Puppeteer Page Error] ${err.message}`);
+  });
+
   await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
   page.setDefaultNavigationTimeout(300000);
   page.setDefaultTimeout(300000);
-  await page.goto(`http://localhost/pdf-maker?id=${id}`, {
+  await page.goto(`http://localhost:3000/pdf-maker?id=${id}`, {
     waitUntil: "networkidle0",
     timeout: 300000,
   });
+
+  // Wait for the presentation slides wrapper to be rendered
+  // This is needed because the page uses client-side fetching to load presentation data
+  try {
+    await page.waitForSelector("#presentation-slides-wrapper", { timeout: 30000 });
+
+    // Wait for slides to be rendered (not just the skeleton loading state)
+    await page.waitForFunction(
+      () => {
+        const wrapper = document.getElementById("presentation-slides-wrapper");
+        if (!wrapper) return false;
+        const slides = wrapper.querySelectorAll(":scope > div > div");
+        return slides.length > 0;
+      },
+      { timeout: 30000 }
+    );
+
+    // Additional wait to ensure all images and fonts are loaded
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  } catch (error) {
+    console.error("Failed to wait for presentation slides:", error);
+    // Take a screenshot for debugging
+    try {
+      await page.screenshot({ path: "/tmp/puppeteer-debug.png", fullPage: true });
+      console.log("Debug screenshot saved to /tmp/puppeteer-debug.png");
+      // Also log the page HTML
+      const html = await page.content();
+      console.log("Page HTML (first 2000 chars):", html.substring(0, 2000));
+    } catch (screenshotErr) {
+      console.error("Failed to take debug screenshot:", screenshotErr);
+    }
+    throw new ApiError("Presentation slides not found");
+  }
+
   return [browser, page];
 }
 
