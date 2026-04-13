@@ -9,21 +9,27 @@
 ### 1.1 架构关系
 
 ```
-┌─────────────────┐      MCP 协议       ┌──────────────────┐
-│   OpenClaw      │◄──────────────────►│  Presenton MCP   │
-│   (AI Agent)    │                     │    Server        │
-│                 │                     │                  │
-│  - 上下文管理    │                     │  - 模板查询       │
-│  - 内容生成      │                     │  - PPT 物化生成   │
-│  - 用户交互      │                     │  - 导出服务       │
-└─────────────────┘                     └────────┬─────────┘
-                                                 │
-                                                 ▼
-                                        ┌──────────────────┐
-                                        │  Presenton API   │
-                                        │  (FastAPI :5000) │
-                                        └──────────────────┘
+┌─────────────────┐                         ┌──────────────────┐
+│   OpenClaw      │                         │  Presenton MCP   │
+│   (AI Agent)    │                         │   Server         │
+│                 │                         │  (127.0.0.1:8001)│
+└────────┬────────┘                         └────────┬─────────┘
+         │                                          ▲
+         │ MCP over HTTP (SSE)                      │
+         │ http://host:5000/mcp                     │ Nginx 代理
+         ▼                                          │
+┌─────────────────┐                         ┌────────┴─────────┐
+│     Nginx       │◄────────────────────────┤  Presenton API   │
+│   (Port :5000)  │                         │  (FastAPI :8000) │
+└─────────────────┘                         └──────────────────┘
 ```
+
+### 1.2 访问方式
+
+| 端点 | 外部 URL | 说明 |
+|------|----------|------|
+| MCP Server | `http://host:5000/mcp` | 通过 Nginx 代理（推荐） |
+| HTTP API | `http://host:5000/api/v1/` | 通过 Nginx 代理 |
 
 ### 1.2 两种集成模式
 
@@ -117,7 +123,7 @@ services:
 {
   "mcpServers": {
     "presenton": {
-      "url": "http://localhost:8001/mcp",
+      "url": "http://host:5000/mcp",
       "transport": "http",
       "name": "Presenton PPT Generator"
     }
@@ -125,48 +131,34 @@ services:
 }
 ```
 
-**跨主机/跨网络配置**：
+**说明**：
+- MCP Server 通过 Nginx 代理暴露，外部统一使用 `http://host:5000/mcp` 访问
+- 容器内 MCP 绑定 `127.0.0.1:8001`，不直接对外暴露
+- Nginx 配置了 SSE 长连接支持（`proxy_buffering off`）
 
-如果 MCP Server 与 Presenton API 不在同一台机器，需要：
-
-1. 启动 MCP 时设置环境变量：
-```bash
-export PRESENTON_API_BASE_URL="http://192.168.3.58:5000"
-./scripts/start-mcp-server.sh
-```
-
-2. 客户端配置使用正确的 MCP 地址：
+**同机访问示例**：
 ```json
 {
   "mcpServers": {
     "presenton": {
-      "url": "http://192.168.3.58:8001/mcp",
-      "transport": "http",
-      "name": "Presenton PPT Generator"
+      "url": "http://localhost:5000/mcp",
+      "transport": "http"
     }
   }
 }
 ```
 
-**部署架构说明**：
+**跨主机访问示例**：
+```json
+{
+  "mcpServers": {
+    "presenton": {
+      "url": "http://192.168.3.58:5000/mcp",
+      "transport": "http"
+    }
+  }
+}
 ```
-┌─────────────────┐      MCP (8001)     ┌──────────────────┐
-│  外部客户端      │◄──────────────────►│  MCP Server      │
-│  (Cursor 等)     │                     │  (容器内)        │
-└─────────────────┘                     └────────┬─────────┘
-                                                 │
-                                                 │ HTTP :8000
-                                                 ▼
-                                        ┌──────────────────┐
-                                        │  Nginx :80       │
-                                        │  (端口映射 5000)  │
-                                        └──────────────────┘
-```
-
-注意事项:
-- MCP Server 需要通过 `PRESENTON_API_BASE_URL` 指定 API 地址
-- 如果 API 在容器内，使用 `http://localhost:8000` (Nginx 代理)
-- 如果 API 在外部，使用 `http://api-host:port`
 
 **Cursor 配置步骤**：
 1. 打开 Cursor Settings → MCP
