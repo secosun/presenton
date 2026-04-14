@@ -128,7 +128,7 @@ services:
     "servers": {
       "presenton": {
         "url": "http://192.168.3.58:5000/mcp",
-        "transport": "http",
+        "transport": "streamable-http",
         "connectionTimeoutMs": 120000
       }
     }
@@ -136,14 +136,42 @@ services:
 }
 ```
 
-**注意**：
-- `transport` 应为 `"http"`（FastMCP 的 HTTP+SSE 传输协议），不是 `"sse"`
-- OpenClaw CLI 使用 `transport: "sse"` 会返回 400 错误
+**注意**（OpenClaw `bundle-mcp` 仅支持 **`sse`** 与 **`streamable-http`**）：
+- 经 Nginx 的 **`/mcp`**（Streamable HTTP）应使用 **`"transport": "streamable-http"`**。
+- 若误用 **`sse`** 去连 **`/mcp`**，易出现 **`SSE error: Non-200 status code (400)`**。
 
 **说明**：
 - 外部客户端通过 Nginx 访问 MCP：**`http://<主机>:5000/mcp`**（本仓库现网示例主机 **`192.168.3.58`** 不变）。
 - 容器内 MCP 进程监听 **`8001`**（常与 `127.0.0.1:8001` 绑定）；**不推荐**绕过 Nginx 直接把 `:8001` 暴露到公网。
 - Nginx 需支持 SSE 长连接（如 **`proxy_buffering off`**）。
+
+### 2.2.1 故障排查：`fetch failed` 与 LLM `network connection error`
+
+在 **`lplssz5908n` 等 Linux 节点**上执行 `openclaw agent --local` 时，日志里若出现：
+
+**1）`[bundle-mcp] failed to start server "presenton" ... TypeError: fetch failed`**
+
+表示 **跑 OpenClaw 进程的那台机器** 无法通过 HTTP 访问 `openclaw.json` 里配置的 **`presenton.url`**（`fetch` 层失败，未到 JSON-RPC）。
+
+- 在该节点上自检（应能返回 SSE/`event: message` 或 JSON）：
+
+```bash
+curl -sS -m 8 -X POST "http://192.168.3.58:5000/mcp" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"1"}},"id":1}'
+```
+
+- **若此处失败**：节点到 **`192.168.3.58:5000`** 不通（路由、防火墙、服务未监听、或 Presenton 不在该网段）。需修网络或把 Presenton/Nginx 暴露到节点可达地址。
+- **若 Presenton 与 agent 在同一台物理机**（本机即 `192.168.3.58`）：部分环境访问 **本机局域网 IP** 会异常，请把 **`mcp.servers.presenton.url`** 改为 **`http://127.0.0.1:5000/mcp`**（现网 IP 可仍写在文档中供其它机器使用）。HTTP 物化脚本中的 **`PRESENTON_API`** 同理可改为 **`http://127.0.0.1:5000`**。
+- **若 agent 在纯内网节点、只有网关能访问 Presenton**：应在 **能访问 `192.168.3.58:5000` 的机器**上跑 agent，或通过 VPN/隧道让节点能访问该地址；**不要**指望在未打通网络的前提下 `bundle-mcp` 仍能连上。
+
+**2）`LLM request failed: network connection error`（bailian / DashScope）**
+
+与 **Presenton MCP 无关**，表示该节点 **访问百炼 API 的 HTTPS 出站失败**（无外网、代理、`NO_PROXY`、DNS、企业防火墙等）。
+
+- 在该机测试外网：`curl -sS -m 10 -o /dev/null -w "%{http_code}\n" https://dashscope.aliyuncs.com/`（或你们实际使用的 endpoint）。
+- 修复出站后重试；若 **仅验收 PPT 物化**、不需大模型，请用集成指南中的 **`exec` + `curl` POST `/api/v1/ppt/presentation/materialize`**，不经过 LLM。
 
 **Cursor**（`~/.openclaw/.cursor/mcp.json` 或 Settings → MCP）示例：
 
@@ -205,7 +233,39 @@ Presenton MCP Server 自动从 OpenAPI 规范暴露以下工具:
 | `generate_presentation` | 生成 PPT（服务端 LLM） | `content`, `n_slides`, `template` |
 | `templates_list` | 获取模板列表 | 无 |
 
-### 2.4 调用示例（MCP 协议）
+### 2.4 远程文件访问
+
+生成的 PPT 文件可通过 Nginx 代理远程访问和下载：
+
+**文件访问 URL 格式**：
+```
+http://<host>:5000/exports/<filename>.pptx
+```
+
+**示例**（主机 `192.168.3.58`）：
+```bash
+# 下载 PPT 文件
+curl -O "http://192.168.3.58:5000/exports/MCP 集成验证.pptx"
+
+# 直接在浏览器打开下载
+# http://192.168.3.58:5000/exports/MCP 集成验证.pptx
+```
+
+**响应头说明**：
+- `Content-Disposition: attachment` - 强制下载
+- `Cache-Control: public, no-cache` - 不缓存（确保获取最新文件）
+- `Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation`
+
+**支持的文件格式**：
+- `.pptx` - PowerPoint 演示文稿
+- `.pdf` - PDF 文档
+
+**注意事项**：
+1. 文件访问需要能通过 `http://<host>:5000` 访问 Presenton 服务
+2. 如果通过代理或防火墙，请确保允许访问 5000 端口
+3. 容器内文件路径 `/app_data/exports/xxx.pptx` 自动映射到外部 URL `/exports/xxx.pptx`
+
+### 2.5 调用示例（MCP 协议）
 
 ```typescript
 // OpenClaw 内调用示例
@@ -234,7 +294,9 @@ const result = await mcp.callTool('presenton', 'materialize_presentation', {
 {
   presentation_id: 'abc-123-xyz',
   path: '/app_data/exports/产品发布会.pptx',
-  edit_path: '/presentation?id=abc-123-xyz'
+  edit_path: '/presentation?id=abc-123-xyz',
+  // 远程下载 URL（可通过 Nginx 代理访问）
+  download_url: 'http://192.168.3.58:5000/exports/产品发布会.pptx'
 }
 ```
 
@@ -350,7 +412,30 @@ if __name__ == "__main__":
     result = generate_ppt(ppt_data)
 ```
 
-### 3.3 Node.js 调用示例
+### 3.3 文件下载
+
+生成 PPT 后可通过 Nginx 代理远程下载：
+
+```python
+import requests
+
+# 假设 API 返回 path: "/app_data/exports/产品发布会.pptx"
+# 转换为远程下载 URL: "http://192.168.3.58:5000/exports/产品发布会.pptx"
+
+def get_download_url(container_path: str, host: str = "192.168.3.58", port: int = 5000) -> str:
+    """将容器路径转换为远程下载 URL"""
+    # 容器路径 /app_data/exports/xxx.pptx → URL 路径 /exports/xxx.pptx
+    file_name = container_path.split("/")[-1]
+    return f"http://{host}:{port}/exports/{file_name}"
+
+# 下载文件
+download_url = get_download_url(result['path'])
+response = requests.get(download_url)
+with open('本地保存的 filename.pptx', 'wb') as f:
+    f.write(response.content)
+```
+
+### 3.4 Node.js 调用示例
 
 ```javascript
 const axios = require('axios');
