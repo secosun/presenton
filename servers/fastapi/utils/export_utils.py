@@ -13,6 +13,17 @@ from services.temp_file_service import TEMP_FILE_SERVICE
 from utils.asset_directory_utils import get_exports_directory
 import uuid
 
+# Presenton 服务的主机地址（用于构建远程下载 URL）
+PRESENTON_HOST = os.environ.get("PRESENTON_HOST", "192.168.3.58")
+PRESENTON_PORT = os.environ.get("PRESENTON_PORT", "5000")
+
+
+def build_download_url(container_path: str) -> str:
+    """将容器路径转换为远程下载 URL"""
+    # 容器路径 /app_data/exports/xxx.pptx → URL 路径 /exports/xxx.pptx
+    file_name = os.path.basename(container_path)
+    return f"http://{PRESENTON_HOST}:{PRESENTON_PORT}/exports/{file_name}"
+
 
 async def export_presentation(
     presentation_id: uuid.UUID, title: str, export_as: Literal["pptx", "pdf"]
@@ -49,6 +60,7 @@ async def export_presentation(
         return PresentationAndPath(
             presentation_id=presentation_id,
             path=pptx_path,
+            download_url=build_download_url(pptx_path),
         )
     else:
         async with aiohttp.ClientSession() as session:
@@ -64,4 +76,5 @@ async def export_presentation(
         return PresentationAndPath(
             presentation_id=presentation_id,
             path=response_json["path"],
+            download_url=build_download_url(response_json["path"]),
         )

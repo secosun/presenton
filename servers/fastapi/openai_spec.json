@@ -217,7 +217,13 @@
           },
           "path": {
             "type": "string",
-            "title": "Path"
+            "title": "Path",
+            "description": "Container file path (e.g., /app_data/exports/xxx.pptx)"
+          },
+          "download_url": {
+            "type": "string",
+            "title": "Download URL",
+            "description": "Remote download URL via Nginx proxy (e.g., http://host:5000/exports/xxx.pptx)"
           },
           "edit_path": {
             "type": "string",
@@ -225,7 +231,7 @@
           }
         },
         "type": "object",
-        "required": ["presentation_id", "path", "edit_path"],
+        "required": ["presentation_id", "path", "download_url", "edit_path"],
         "title": "PresentationPathAndEditPath"
       },
       "HTTPValidationError": {
