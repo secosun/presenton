@@ -31,7 +31,9 @@
 | MCP Server | `http://host:5000/mcp` | 通过 Nginx 代理（推荐） |
 | HTTP API | `http://host:5000/api/v1/` | 通过 Nginx 代理 |
 
-### 1.2 两种集成模式
+现网示例（主机 **`192.168.3.58`** 不变）：MCP **`http://192.168.3.58:5000/mcp`**，HTTP **`http://192.168.3.58:5000/api/v1/`**。
+
+### 1.3 两种集成模式
 
 | 模式 | 说明 | 适用场景 |
 |------|------|----------|
@@ -67,15 +69,16 @@ export PRESENTON_API_BASE_URL="http://192.168.3.58:5000"
 SUCCESS: MCP server is running on port 8001
 
 === Connection Info ===
-MCP SSE Endpoint: http://localhost:8001/mcp
+MCP（容器内直连）: http://127.0.0.1:8001/mcp
+外部（经 Nginx，推荐）: http://192.168.3.58:5000/mcp
 Transport: HTTP (SSE)
 
 === OpenClaw/Cursor Configuration ===
-Add to your MCP settings:
+外部客户端请使用 Nginx 统一入口（示例主机 192.168.3.58）：
 {
   "mcpServers": {
     "presenton": {
-      "url": "http://localhost:8001/mcp",
+      "url": "http://192.168.3.58:5000/mcp",
       "transport": "http",
       "name": "Presenton PPT Generator"
     }
@@ -117,68 +120,66 @@ services:
 
 ### 2.2 OpenClaw MCP 配置
 
-在 OpenClaw 的配置文件中添加 MCP Server:
+**OpenClaw**（`~/.openclaw/openclaw.json`）：须放在 **`mcp.servers`** 下（根级 **`mcpServers`** 对 OpenClaw CLI **无效**）。MCP 经 Nginx 暴露时，外部统一使用 **`:5000/mcp`**。
 
 ```json
 {
-  "mcpServers": {
-    "presenton": {
-      "url": "http://host:5000/mcp",
-      "transport": "http",
-      "name": "Presenton PPT Generator"
+  "mcp": {
+    "servers": {
+      "presenton": {
+        "url": "http://192.168.3.58:5000/mcp",
+        "transport": "http",
+        "connectionTimeoutMs": 120000
+      }
     }
   }
 }
 ```
+
+**注意**：
+- `transport` 应为 `"http"`（FastMCP 的 HTTP+SSE 传输协议），不是 `"sse"`
+- OpenClaw CLI 使用 `transport: "sse"` 会返回 400 错误
 
 **说明**：
-- MCP Server 通过 Nginx 代理暴露，外部统一使用 `http://host:5000/mcp` 访问
-- 容器内 MCP 绑定 `127.0.0.1:8001`，不直接对外暴露
-- Nginx 配置了 SSE 长连接支持（`proxy_buffering off`）
+- 外部客户端通过 Nginx 访问 MCP：**`http://<主机>:5000/mcp`**（本仓库现网示例主机 **`192.168.3.58`** 不变）。
+- 容器内 MCP 进程监听 **`8001`**（常与 `127.0.0.1:8001` 绑定）；**不推荐**绕过 Nginx 直接把 `:8001` 暴露到公网。
+- Nginx 需支持 SSE 长连接（如 **`proxy_buffering off`**）。
 
-**同机访问示例**：
+**Cursor**（`~/.openclaw/.cursor/mcp.json` 或 Settings → MCP）示例：
+
 ```json
 {
   "mcpServers": {
     "presenton": {
-      "url": "http://localhost:5000/mcp",
-      "transport": "http"
-    }
-  }
-}
-```
-
-**跨主机访问示例**：
-```json
-{
-  "mcpServers": {
-    "presenton": {
+      "description": "Presenton PPT（API+MCP 经 Nginx :5000）",
+      "transportType": "http",
       "url": "http://192.168.3.58:5000/mcp",
-      "transport": "http"
+      "timeout": 120
     }
   }
 }
 ```
+
+**同机调试**：将上述 URL 中的主机改为 **`127.0.0.1`** 或 **`localhost`** 即可。
 
 **Cursor 配置步骤**：
 1. 打开 Cursor Settings → MCP
 2. 点击 "Add MCP Server"
 3. 填入：
    - Name: `Presenton`
-   - URL: `http://localhost:8001/mcp`
-   - Transport: `HTTP (SSE)`
+   - URL: **`http://192.168.3.58:5000/mcp`**（同机则用 `http://127.0.0.1:5000/mcp`）
+   - Transport: **`HTTP (SSE)`**
 4. 保存后应显示为绿色连接状态
 
-**验证连接**：
+**验证连接**（经 Nginx）：
 ```bash
-# 测试 MCP endpoint
-curl http://localhost:8001/mcp \
-  -H "Accept: text/event-stream" \
+curl "http://192.168.3.58:5000/mcp" \
+  -H "Accept: text/event-stream, application/json" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}},"id":1}'
 ```
 
-或Claude Code 配置 (`claude_desktop_config.json`):
+或 **Claude Desktop** 等支持 `mcpServers` 的客户端（`claude_desktop_config.json`；**非** Claude Code CLI 的 MCP 能力）：
 
 ```json
 {
@@ -254,11 +255,14 @@ const result = await mcp.callTool('presenton', 'materialize_presentation', {
 import requests
 import json
 
-# 外部访问（通过 Nginx 代理，推荐）
-PRESENTON_API = "http://host:5000"
+# 外部访问（通过 Nginx 代理，推荐；现网示例主机）
+PRESENTON_API = "http://192.168.3.58:5000"
 
-# 容器内访问
-# PRESENTON_API = "http://localhost:8000"
+# 其它主机请将 192.168.3.58 替换为实际 IP 或域名
+# PRESENTON_API = "http://host:5000"
+
+# 容器内直连 FastAPI（不经 Nginx）
+# PRESENTON_API = "http://127.0.0.1:8000"
 
 # 步骤 1: 获取模板布局定义
 def get_template_layouts(template_name: str) -> dict:
@@ -351,11 +355,11 @@ if __name__ == "__main__":
 ```javascript
 const axios = require('axios');
 
-// 外部访问（通过 Nginx 代理，推荐）
-const PRESENTON_API = 'http://host:5000';
+// 外部访问（通过 Nginx 代理；现网示例主机）
+const PRESENTON_API = 'http://192.168.3.58:5000';
 
-// 容器内访问
-// const PRESENTON_API = 'http://localhost:8000';
+// 容器内直连 FastAPI（不经 Nginx）
+// const PRESENTON_API = 'http://127.0.0.1:8000';
 
 async function generatePresentation() {
   try {
