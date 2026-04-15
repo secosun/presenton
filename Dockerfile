@@ -80,7 +80,9 @@ WORKDIR /app/servers/nextjs
 COPY servers/nextjs/package.json servers/nextjs/package-lock.json ./
 # Cypress is dev-only; downloading ~200MB inside Docker often fails (proxy / truncated).
 ENV CYPRESS_INSTALL_BINARY=0
-RUN npm install
+# Use npm registry mirror for better connectivity in China
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm install
 
 
 # Copy Next.js app
