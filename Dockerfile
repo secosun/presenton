@@ -53,27 +53,12 @@ RUN HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= http_proxy= https_proxy= all_proxy= \
   PySocks
 
 # Install dependencies for FastAPI
+# Note: docling is NOT installed here - it's in a separate service (see Dockerfile.docling)
 RUN pip install --retries 10 --default-timeout=600 --no-cache-dir \
     -i ${PIP_INDEX_URL} --trusted-host pypi.tuna.tsinghua.edu.cn \
     alembic aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \
     pathvalidate pdfplumber chromadb sqlmodel jsonschema \
     anthropic google-genai openai fastmcp dirtyjson 'httpx[socks]'
-# Docling + torch CPU: Tsinghua PyPI + Aliyun pytorch-wheels (avoid download.pytorch.org abroad).
-RUN /bin/sh -c 'unset PIP_CONSTRAINT 2>/dev/null; \
-  HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= http_proxy= https_proxy= all_proxy= \
-  PIP_REQUIRE_HASHES=0 PIP_DISABLE_PIP_VERSION_CHECK=1 \
-  pip install --retries 15 --default-timeout=3600 --no-cache-dir \
-  -i ${PIP_INDEX_URL} --extra-index-url ${TORCH_EXTRA_INDEX} \
-  --trusted-host pypi.tuna.tsinghua.edu.cn --trusted-host mirrors.aliyun.com \
-  docling \
-  || pip install --retries 15 --default-timeout=3600 --no-cache-dir \
-  -i ${PIP_INDEX_URL} --extra-index-url ${TORCH_EXTRA_INDEX} \
-  --trusted-host pypi.tuna.tsinghua.edu.cn --trusted-host mirrors.aliyun.com \
-  docling \
-  || pip install --retries 15 --default-timeout=3600 --no-cache-dir \
-  -i ${PIP_INDEX_URL} --extra-index-url ${TORCH_EXTRA_INDEX} \
-  --trusted-host pypi.tuna.tsinghua.edu.cn --trusted-host mirrors.aliyun.com \
-  docling'
 
 # Install dependencies for Next.js
 WORKDIR /app/servers/nextjs

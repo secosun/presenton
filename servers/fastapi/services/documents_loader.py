@@ -10,7 +10,9 @@ from constants.documents import (
     TEXT_MIME_TYPES,
     WORD_TYPES,
 )
-from services.docling_service import DoclingService
+
+# Docling service URL - can be overridden via environment variable
+DOCLING_SERVICE_URL = os.getenv("DOCLING_SERVICE_URL", "http://docling-service:8001")
 
 
 class DocumentsLoader:
@@ -18,10 +20,31 @@ class DocumentsLoader:
     def __init__(self, file_paths: List[str]):
         self._file_paths = file_paths
 
-        self.docling_service = DoclingService()
-
         self._documents: List[str] = []
         self._images: List[List[str]] = []
+
+    async def _call_docling_service(self, file_path: str) -> str:
+        """Call the external docling service to parse document to markdown"""
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            try:
+                response = await client.post(
+                    f"{DOCLING_SERVICE_URL}/parse",
+                    params={"file_path": file_path}
+                )
+                response.raise_for_status()
+                result = response.json()
+                if result.get("success"):
+                    return result.get("markdown", "")
+                else:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Docling service failed: {result.get('error', 'Unknown error')}"
+                    )
+            except httpx.HTTPError as e:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Docling service unavailable: {str(e)}"
+                )
 
     @property
     def documents(self):
@@ -80,7 +103,7 @@ class DocumentsLoader:
         document: str = ""
 
         if load_text:
-            document = self.docling_service.parse_to_markdown(file_path)
+            document = await self._call_docling_service(file_path)
 
         if load_images:
             image_paths = await self.get_page_images_from_pdf_async(file_path, temp_dir)
@@ -91,11 +114,11 @@ class DocumentsLoader:
         with open(file_path, "r") as file:
             return await asyncio.to_thread(file.read)
 
-    def load_msword(self, file_path: str) -> str:
-        return self.docling_service.parse_to_markdown(file_path)
+    async def load_msword(self, file_path: str) -> str:
+        return await self._call_docling_service(file_path)
 
-    def load_powerpoint(self, file_path: str) -> str:
-        return self.docling_service.parse_to_markdown(file_path)
+    async def load_powerpoint(self, file_path: str) -> str:
+        return await self._call_docling_service(file_path)
 
     @classmethod
     def get_page_images_from_pdf(cls, file_path: str, temp_dir: str) -> List[str]:

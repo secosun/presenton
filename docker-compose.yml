@@ -1,4 +1,14 @@
 services:
+  docling-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.docling
+    environment:
+      - PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+      - TORCH_EXTRA_INDEX=https://mirrors.aliyun.com/pytorch-wheels/cpu
+    networks:
+      - presenton-network
+
   production:
     # image: ghcr.io/presenton/presenton:latest
     build:
@@ -17,6 +27,7 @@ services:
       - ./app_data:/app_data
     environment:
       - MIGRATE_DATABASE_ON_STARTUP=true
+      - DOCLING_SERVICE_URL=http://docling-service:8001
       - CAN_CHANGE_KEYS=${CAN_CHANGE_KEYS}
       - LLM=${LLM}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -40,6 +51,18 @@ services:
       - DISABLE_ANONYMOUS_TRACKING=${DISABLE_ANONYMOUS_TRACKING}
       - COMFYUI_URL=${COMFYUI_URL}
       - COMFYUI_WORKFLOW=${COMFYUI_WORKFLOW}
+    depends_on:
+      - docling-service
+    networks:
+      - presenton-network
+    depends_on:
+      - docling-service
+    networks:
+      - presenton-network
+
+networks:
+  presenton-network:
+    driver: bridge
 
   production-gpu:
     # image: ghcr.io/presenton/presenton:latest
@@ -85,7 +108,15 @@ services:
       - DISABLE_ANONYMOUS_TRACKING=${DISABLE_ANONYMOUS_TRACKING}
       - COMFYUI_URL=${COMFYUI_URL}
       - COMFYUI_WORKFLOW=${COMFYUI_WORKFLOW}
-  
+    depends_on:
+      - docling-service
+    networks:
+      - presenton-network
+    depends_on:
+      - docling-service
+    networks:
+      - presenton-network
+
   development:
     build:
       context: .
@@ -125,6 +156,14 @@ services:
       - DISABLE_ANONYMOUS_TRACKING=${DISABLE_ANONYMOUS_TRACKING}
       - COMFYUI_URL=${COMFYUI_URL}
       - COMFYUI_WORKFLOW=${COMFYUI_WORKFLOW}
+    depends_on:
+      - docling-service
+    networks:
+      - presenton-network
+    depends_on:
+      - docling-service
+    networks:
+      - presenton-network
 
   development-gpu:
     build:
@@ -170,3 +209,7 @@ services:
       - DISABLE_ANONYMOUS_TRACKING=${DISABLE_ANONYMOUS_TRACKING}
       - COMFYUI_URL=${COMFYUI_URL}
       - COMFYUI_WORKFLOW=${COMFYUI_WORKFLOW}
+    depends_on:
+      - docling-service
+    networks:
+      - presenton-network

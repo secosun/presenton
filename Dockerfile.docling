@@ -1,0 +1,29 @@
+FROM python:3.11-slim-bookworm
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_DEFAULT_TIMEOUT=1800
+
+# Pip mirrors (China-friendly)
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+ARG TORCH_EXTRA_INDEX=https://mirrors.aliyun.com/pytorch-wheels/cpu
+
+# Install docling and its dependencies (torch, transformers, etc.)
+RUN pip install --retries 15 --default-timeout=3600 --no-cache-dir \
+    -i ${PIP_INDEX_URL} --extra-index-url ${TORCH_EXTRA_INDEX} \
+    --trusted-host pypi.tuna.tsinghua.edu.cn --trusted-host mirrors.aliyun.com \
+    docling
+
+WORKDIR /app
+
+# Copy the service code
+COPY servers/docling-service/main.py ./main.py
+
+EXPOSE 8001
+
+CMD ["python", "main.py"]
