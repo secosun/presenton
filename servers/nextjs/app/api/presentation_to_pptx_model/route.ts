@@ -1,6 +1,6 @@
 import { ApiError } from "@/models/errors";
 import { NextRequest, NextResponse } from "next/server";
-import puppeteer, { Browser, ElementHandle, Page } from "puppeteer";
+import puppeteer, { Browser, ElementHandle, Page } from "puppeteer-core";
 import {
   ElementAttributes,
   SlideAttributesResult,
@@ -99,8 +99,9 @@ async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
   page.on("console", (msg) => {
     console.log(`[Puppeteer Console] ${msg.type()}: ${msg.text()}`);
   });
-  page.on("pageerror", (err) => {
-    console.error(`[Puppeteer Page Error] ${err.message}`);
+  page.on("pageerror", (err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[Puppeteer Page Error] ${msg}`);
   });
 
   await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });

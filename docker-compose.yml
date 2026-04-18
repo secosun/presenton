@@ -1,14 +1,25 @@
 services:
+  # ========== 独立 Docling 服务镜像 ==========
   docling-service:
     build:
       context: .
       dockerfile: Dockerfile.docling
+      args:
+        PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
+        TORCH_EXTRA_INDEX: https://mirrors.aliyun.com/pytorch-wheels/cpu
     environment:
       - PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
       - TORCH_EXTRA_INDEX=https://mirrors.aliyun.com/pytorch-wheels/cpu
     networks:
       - presenton-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
+  # ========== 主应用镜像 (不含 docling) ==========
   production:
     # image: ghcr.io/presenton/presenton:latest
     build:
@@ -55,10 +66,6 @@ services:
       - docling-service
     networks:
       - presenton-network
-    depends_on:
-      - docling-service
-    networks:
-      - presenton-network
 
 networks:
   presenton-network:
@@ -69,6 +76,8 @@ networks:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        INSTALL_OLLAMA: "false"
     deploy:
       resources:
         reservations:
@@ -85,6 +94,7 @@ networks:
       - ./app_data:/app_data
     environment:
       - MIGRATE_DATABASE_ON_STARTUP=true
+      - DOCLING_SERVICE_URL=http://docling-service:8001
       - CAN_CHANGE_KEYS=${CAN_CHANGE_KEYS}
       - LLM=${LLM}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -112,15 +122,13 @@ networks:
       - docling-service
     networks:
       - presenton-network
-    depends_on:
-      - docling-service
-    networks:
-      - presenton-network
 
   development:
     build:
       context: .
       dockerfile: Dockerfile.dev
+      args:
+        INSTALL_OLLAMA: "false"
     ports:
       - "5000:80"
       # Required for Codex OAuth callback (OpenAI redirects browser directly to localhost:1455)
@@ -133,6 +141,7 @@ networks:
     environment:
       - CYPRESS_INSTALL_BINARY=0
       - MIGRATE_DATABASE_ON_STARTUP=true
+      - DOCLING_SERVICE_URL=http://docling-service:8001
       - CAN_CHANGE_KEYS=${CAN_CHANGE_KEYS}
       - LLM=${LLM}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -160,15 +169,13 @@ networks:
       - docling-service
     networks:
       - presenton-network
-    depends_on:
-      - docling-service
-    networks:
-      - presenton-network
 
   development-gpu:
     build:
       context: .
       dockerfile: Dockerfile.dev
+      args:
+        INSTALL_OLLAMA: "false"
     deploy:
       resources:
         reservations:
@@ -186,6 +193,7 @@ networks:
     environment:
       - CYPRESS_INSTALL_BINARY=0
       - MIGRATE_DATABASE_ON_STARTUP=true
+      - DOCLING_SERVICE_URL=http://docling-service:8001
       - CAN_CHANGE_KEYS=${CAN_CHANGE_KEYS}
       - LLM=${LLM}
       - OPENAI_API_KEY=${OPENAI_API_KEY}

@@ -1,11 +1,32 @@
 .git
 .gitignore
 
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.venv
+**/venv
+.env
+.env.*
+
+# Desktop (Electron) app — not used by Dockerized Next.js/FastAPI image
+electron
+readme_assets
+.github
+docs
+
+*.md
+!LICENSE
+!NOTICE
+
 servers/fastapi/tmp
 servers/fastapi/debug
 servers/fastapi/.venv
 
 servers/nextjs/node_modules
 servers/nextjs/.next
+servers/nextjs/.next-build
 
 container.db

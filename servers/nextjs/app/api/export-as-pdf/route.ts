@@ -1,6 +1,6 @@
 import path from "path";
 import fs from "fs";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
 
 import { sanitizeFilename } from "@/app/(presentation-generator)/utils/others";
 import { NextResponse, NextRequest } from "next/server";

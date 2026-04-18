@@ -201,6 +201,27 @@ Run Presenton directly in your browser — no installation, no setup required. S
     <a href="./docs/pytorch-docling.md"><code>docs/pytorch-docling.md</code></a>.
   </p>
 
+  <p>
+    <strong>Docker image (build):</strong> The production <code>Dockerfile</code> is
+    <strong>multi-stage</strong>: Next.js is built in a <code>node:20-bookworm-slim</code>
+    stage, then only the built app and <strong>production</strong>
+    <code>node_modules</code> (after <code>npm prune --omit=dev</code>) are copied into
+    the Python runtime image. Node is supplied by copying <code>/usr/local</code> from
+    the official Node image (same Debian bookworm base as <code>python:3.11-slim-bookworm</code>),
+    which avoids the NodeSource setup script and trims layers. Optional build args:
+    <code>NPM_REGISTRY</code> (default mirrors npmmirror; set to
+    <code>https://registry.npmjs.org</code> if needed),
+    <code>PIP_INDEX_URL</code>, and <code>INSTALL_OLLAMA</code>.
+    For the Docling sidecar image, see <code>Dockerfile.docling</code> build args
+    including <code>TORCH_EXTRA_INDEX</code>.
+    A broader <code>.dockerignore</code> reduces build context size (including the
+    <code>electron/</code> desktop tree, which is not part of the web container).
+    The Next.js app uses <strong><code>puppeteer-core</code></strong> with
+    <code>PUPPETEER_EXECUTABLE_PATH</code> pointing at the image&apos;s system
+    <code>chromium</code>, so the container does not download a bundled Chromium
+    during <code>npm ci</code>.
+  </p>
+
 #
 
 ### ⚙️ Deployment Configurations

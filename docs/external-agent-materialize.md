@@ -2,7 +2,7 @@
 
 本文档描述将 **OpenClaw（或任意外部 Agent）** 作为唯一「大脑」时，Presenton 侧应提供的 **物化（materialize）** 能力的设计：会话与记忆留在 Agent，Presenton 负责校验、落库、渲染与导出。
 
-**状态**：已实现。HTTP 路由 `POST /api/v1/ppt/presentation/materialize`（FastAPI 前缀 `/api/v1/ppt` + `presentation` router），与主线生成链路并存。
+**状态**：已实现。HTTP 路由 `POST /api/v1/ppt/presentation/materialize`（FastAPI 前缀 `/api/v1/ppt` + `presentation` router）。本仓库 **已删除** 服务端 LLM 驱动的 `generate` / `create` / `prepare` / `stream` / `edit` / `derive` 等接口；Next.js 内置向导若仍调用旧路径将失败，请以外部 Agent + 物化 API 或自行恢复路由为准。
 
 ---
 
@@ -10,7 +10,7 @@
 
 ### 1.1 问题
 
-- 现有 `POST .../presentation/generate` 等路径在服务端调用 `generate_ppt_outline`、`generate_presentation_structure`、`get_slide_content_from_type_and_outline` 等，**依赖 Presenton 已配置的 LLM**。
+- 上游 Presenton 的 `POST .../presentation/generate` 等路径曾在服务端调用 `generate_ppt_outline`、`generate_presentation_structure`、`get_slide_content_from_type_and_outline` 等，**依赖 Presenton 已配置的 LLM**（本仓库对应路由已移除）。
 - 内置 MCP（`servers/fastapi/mcp_server.py`）通过 OpenAPI 将上述 HTTP 能力暴露为工具，**并不替代**服务端推理。
 
 ### 1.2 目标

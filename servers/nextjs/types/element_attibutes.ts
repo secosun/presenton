@@ -1,4 +1,4 @@
-import { ElementHandle } from "puppeteer";
+import { ElementHandle } from "puppeteer-core";
 
 export interface ElementAttributes {
   tagName: string;

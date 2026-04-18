@@ -1,23 +1,20 @@
 FROM python:3.11-slim-bookworm
 
-# Install Node.js and npm
-RUN apt-get update && apt-get install -y \
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
   nginx \
   curl \
+  ca-certificates \
   libreoffice \
   fontconfig \
   chromium \
-  zstd
+  zstd \
+  && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20 using NodeSource repository
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-  apt-get install -y nodejs
+COPY --from=node:20-bookworm-slim /usr/local /usr/local
+ENV PATH=/usr/local/bin:$PATH
 
-
-# Change working directory
 WORKDIR /app
-
-RUN ls -a
 
 # Set environment variables
 ENV APP_DATA_DIRECTORY=/app_data
@@ -34,8 +31,10 @@ ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ARG TORCH_EXTRA_INDEX=https://mirrors.aliyun.com/pytorch-wheels/cpu
 
 RUN HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= http_proxy= https_proxy= all_proxy= \
-  pip install --no-cache-dir -i ${PIP_INDEX_URL} \
+  pip install --no-cache-dir -i "${PIP_INDEX_URL}" \
+  --trusted-host pypi.org \
   --trusted-host pypi.tuna.tsinghua.edu.cn \
+  --trusted-host mirrors.aliyun.com \
   PySocks
 
 # Install ollama
@@ -43,24 +42,28 @@ RUN HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= http_proxy= https_proxy= all_proxy= \
 
 # Install dependencies for FastAPI
 RUN pip install --retries 10 --default-timeout=600 --no-cache-dir \
-  -i ${PIP_INDEX_URL} --trusted-host pypi.tuna.tsinghua.edu.cn \
+  -i "${PIP_INDEX_URL}" \
+  --trusted-host pypi.org \
+  --trusted-host pypi.tuna.tsinghua.edu.cn \
+  --trusted-host mirrors.aliyun.com \
   alembic aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \
   pathvalidate pdfplumber chromadb sqlmodel jsonschema \
-  anthropic google-genai openai fastmcp dirtyjson 'httpx[socks]'
+  anthropic google-genai openai fastmcp dirtyjson 'httpx[socks]' \
+  python-pptx nltk redis
 RUN /bin/sh -c 'unset PIP_CONSTRAINT 2>/dev/null; \
   HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= http_proxy= https_proxy= all_proxy= \
   PIP_REQUIRE_HASHES=0 PIP_DISABLE_PIP_VERSION_CHECK=1 \
   pip install --retries 15 --default-timeout=3600 --no-cache-dir \
-  -i ${PIP_INDEX_URL} --extra-index-url ${TORCH_EXTRA_INDEX} \
-  --trusted-host pypi.tuna.tsinghua.edu.cn --trusted-host mirrors.aliyun.com \
+  -i "${PIP_INDEX_URL}" --extra-index-url "${TORCH_EXTRA_INDEX}" \
+  --trusted-host pypi.org --trusted-host pypi.tuna.tsinghua.edu.cn --trusted-host mirrors.aliyun.com \
   docling \
   || pip install --retries 15 --default-timeout=3600 --no-cache-dir \
-  -i ${PIP_INDEX_URL} --extra-index-url ${TORCH_EXTRA_INDEX} \
-  --trusted-host pypi.tuna.tsinghua.edu.cn --trusted-host mirrors.aliyun.com \
+  -i "${PIP_INDEX_URL}" --extra-index-url "${TORCH_EXTRA_INDEX}" \
+  --trusted-host pypi.org --trusted-host pypi.tuna.tsinghua.edu.cn --trusted-host mirrors.aliyun.com \
   docling \
   || pip install --retries 15 --default-timeout=3600 --no-cache-dir \
-  -i ${PIP_INDEX_URL} --extra-index-url ${TORCH_EXTRA_INDEX} \
-  --trusted-host pypi.tuna.tsinghua.edu.cn --trusted-host mirrors.aliyun.com \
+  -i "${PIP_INDEX_URL}" --extra-index-url "${TORCH_EXTRA_INDEX}" \
+  --trusted-host pypi.org --trusted-host pypi.tuna.tsinghua.edu.cn --trusted-host mirrors.aliyun.com \
   docling'
 
 # Copy nginx configuration
