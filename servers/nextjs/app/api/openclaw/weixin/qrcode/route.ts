@@ -26,12 +26,21 @@ export async function GET() {
     const response = await fetch(targetUrl);
     const html = await response.text();
 
+    // 检查 Gateway 响应状态
+    if (!response.ok) {
+      console.error("Gateway 扫码页请求失败:", response.status, html.substring(0, 100));
+      return NextResponse.json(
+        { error: `网关服务异常 (${response.status})` },
+        { status: response.status }
+      );
+    }
+
     // 2. 提取二维码数据
     const bootData = extractBootData(html);
     if (!bootData || !bootData.qrDataUrl) {
       return NextResponse.json(
         { error: "无法获取二维码数据" },
-        { status: 500 }
+        { status: 502 }
       );
     }
 

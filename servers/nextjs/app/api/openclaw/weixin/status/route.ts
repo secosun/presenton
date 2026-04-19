@@ -28,6 +28,16 @@ export async function POST(request: Request) {
       }),
     });
 
+    // 检查 Gateway 响应状态
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Gateway 状态查询失败:", response.status, errorText.substring(0, 200));
+      return NextResponse.json(
+        { status: "error", message: `网关服务异常 (${response.status})` },
+        { status: response.status }
+      );
+    }
+
     const data = await response.json();
 
     if (data.connected) {
