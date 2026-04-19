@@ -23,15 +23,19 @@ export async function GET() {
   try {
     // 1. 请求网关扫码页面
     const targetUrl = `${OPENCLAW_GATEWAY_BASE}/__openclaw__/weixin/scan?token=${encodeURIComponent(OPENCLAW_GATEWAY_TOKEN)}`;
-    const response = await fetch(targetUrl);
+    const response = await fetch(targetUrl, { cache: "no-store" });
     const html = await response.text();
+
+    const noCacheHeaders = {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+    };
 
     // 检查 Gateway 响应状态
     if (!response.ok) {
       console.error("Gateway 扫码页请求失败:", response.status, html.substring(0, 100));
       return NextResponse.json(
         { error: `网关服务异常 (${response.status})` },
-        { status: response.status }
+        { status: response.status, headers: noCacheHeaders }
       );
     }
 
@@ -40,7 +44,7 @@ export async function GET() {
     if (!bootData || !bootData.qrDataUrl) {
       return NextResponse.json(
         { error: "无法获取二维码数据" },
-        { status: 502 }
+        { status: 502, headers: noCacheHeaders }
       );
     }
 
@@ -64,18 +68,30 @@ export async function GET() {
       // 回退到原始 URL
     }
 
-    return NextResponse.json({
-      qrCode: qrBase64,
-      sessionKey: bootData.sessionKey,
-      message: bootData.message || "使用微信扫描上方二维码完成绑定",
-      waitPath: bootData.waitPath || "/__openclaw__/weixin/login/wait",
-      expireTime: Date.now() + 5 * 60 * 1000,
-    });
+    return NextResponse.json(
+      {
+        qrCode: qrBase64,
+        sessionKey: bootData.sessionKey,
+        message: bootData.message || "使用微信扫描上方二维码完成绑定",
+        waitPath: bootData.waitPath || "/__openclaw__/weixin/login/wait",
+        expireTime: Date.now() + 5 * 60 * 1000,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+      }
+    );
   } catch (error) {
     console.error("获取二维码失败:", error);
     return NextResponse.json(
       { error: "网关连接失败" },
-      { status: 503 }
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+      }
     );
   }
 }
