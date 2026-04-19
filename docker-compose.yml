@@ -62,14 +62,16 @@ services:
       - DISABLE_ANONYMOUS_TRACKING=${DISABLE_ANONYMOUS_TRACKING}
       - COMFYUI_URL=${COMFYUI_URL}
       - COMFYUI_WORKFLOW=${COMFYUI_WORKFLOW}
+      - OPENCLAW_GATEWAY_BASE=http://host.docker.internal:18789
+      - OPENCLAW_GATEWAY_TOKEN=openclaw-distributed-secret-key
+      - NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE=http://host.docker.internal:18789
+      - NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN=openclaw-distributed-secret-key
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - docling-service
     networks:
       - presenton-network
-
-networks:
-  presenton-network:
-    driver: bridge
 
   production-gpu:
     # image: ghcr.io/presenton/presenton:latest
@@ -138,6 +140,8 @@ networks:
     volumes:
       - .:/app
       - ./app_data:/app_data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - CYPRESS_INSTALL_BINARY=0
       - MIGRATE_DATABASE_ON_STARTUP=true
@@ -165,6 +169,12 @@ networks:
       - DISABLE_ANONYMOUS_TRACKING=${DISABLE_ANONYMOUS_TRACKING}
       - COMFYUI_URL=${COMFYUI_URL}
       - COMFYUI_WORKFLOW=${COMFYUI_WORKFLOW}
+      - OPENCLAW_GATEWAY_BASE=http://host.docker.internal:18789
+      - OPENCLAW_GATEWAY_TOKEN=openclaw-distributed-secret-key
+      - NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE=http://host.docker.internal:18789
+      - NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN=openclaw-distributed-secret-key
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - docling-service
     networks:
@@ -221,3 +231,7 @@ networks:
       - docling-service
     networks:
       - presenton-network
+
+networks:
+  presenton-network:
+    driver: bridge
