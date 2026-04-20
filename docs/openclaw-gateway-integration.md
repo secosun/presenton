@@ -60,17 +60,17 @@ Presenton 与 OpenClaw Gateway 集成实现微信扫码绑定功能，支持 Age
 
 ### 内网网关 + 外网只穿透 Presenton（无公网 IP）
 
-典型拓扑：**OpenClaw 网关**跑在内网某台机器/容器上（例如 `192.168.233.132:18789`），**无公网域名**；**Presenton** 与网关在同一内网可达；用户通过**内网穿透**访问 `https://ppt.installall.cn` 等公网入口，只看到 Presenton。
+典型拓扑：**OpenClaw 网关**跑在内网某台机器/容器上（例如 `192.168.3.58:18789`），**无公网域名**；**Presenton** 与网关在同一内网可达；用户通过**内网穿透**访问 `https://ppt.installall.cn` 等公网入口，只看到 Presenton。
 
 要点：
 
 1. **`OPENCLAW_GATEWAY_BASE` 填内网可达地址**，不要填穿透后的公网域名（除非穿透规则也把 `/__openclaw__/` 反代到了网关）。  
-   示例：`OPENCLAW_GATEWAY_BASE=http://192.168.233.132:18789`（端口以网关实际映射为准，常见为 `18789`）。
+   示例：`OPENCLAW_GATEWAY_BASE=http://192.168.3.58:18789`（端口以网关实际映射为准，常见为 `18789`）。
 
 2. **发起扫码页请求的是 Presenton 服务端**（Next.js API Route），不是用户浏览器。因此只要 **跑 Presenton 的那台机/容器** 能 `curl` 通上述内网地址即可；用户浏览器**不需要**能直连网关。
 
 3. **Docker 里的 Presenton**：若网关 IP 是局域网另一台主机，容器必须能路由到该网段（例如与宿主机同桥、使用 `network_mode: host`、或在 compose 里加 `extra_hosts` / 静态路由）。在 **Presenton 容器内** 执行：  
-   `curl -sS -o /dev/null -w "%{http_code}\n" "http://192.168.233.132:18789/healthz"`  
+   `curl -sS -o /dev/null -w "%{http_code}\n" "http://192.168.3.58:18789/healthz"`  
    应为 **200**。
 
 4. **`OPENCLAW_GATEWAY_TOKEN`** 必须与网关容器环境变量或 `gateway.auth.token` **完全一致**（与是否有公网无关）。
@@ -201,6 +201,20 @@ curl http://localhost:5000/api/openclaw/weixin/scan
 代理返回 Gateway 的原始扫码 HTML 页面。
 
 ## 故障排查
+
+### 问题：`/api/openclaw/weixin/qrcode` 或扫码代理返回 **401**（生产 / 分布式常见）
+
+**典型根因**：`openclaw-gateway` 使用的 **`OPENCLAW_GATEWAY_TOKEN`**（见 `openclawcluster` 的 `.env` 或 compose 默认值，默认常为 `openclaw-distributed-secret-key`）与 **Presenton** 的 **`OPENCLAW_GATEWAY_TOKEN` / `NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN`**（`presenton/.env` 或 compose 覆盖）**不一致**。网关校验扫码页 `?token=` 或 HTTP Bearer 失败即 **401**。
+
+**处理**：使两处 token **字节级相同**（仓库默认开发与生产均为 `openclaw-distributed-secret-key`，上线请改为强随机串并同步）；若卷内 `openclaw.json` 存在 **`gateway.auth.token`**，其优先级高于环境变量，需与 Presenton 对齐或删除后重启网关（见 `openclawcluster/scripts/diagnose-gateway-auth-token-precedence.sh`）。
+
+**自检**（在 **Presenton 容器内**，token 须 URL 编码）：
+
+```bash
+docker exec <presenton_容器名> sh -c 'curl -sS -o /dev/null -w "%{http_code}\n" -G --data-urlencode "token=$OPENCLAW_GATEWAY_TOKEN" "$OPENCLAW_GATEWAY_BASE/__openclaw__/weixin/scan"'
+```
+
+期望 **200**；若为 **401** 再核对 token 与网关卷内配置。
 
 ### 问题：二维码接口返回 "无法获取二维码数据"
 
