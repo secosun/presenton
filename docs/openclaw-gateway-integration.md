@@ -46,7 +46,36 @@ Presenton 与 OpenClaw Gateway 集成实现微信扫码绑定功能，支持 Age
 在 API Route 中的优先级：
 1. 优先使用 `OPENCLAW_GATEWAY_*`（运行时环境变量）
 2. 回退到 `NEXT_PUBLIC_OPENCLAW_GATEWAY_*`（构建时内联值）
-3. 最终回退到生产环境默认值
+3. **`NODE_ENV=production` 时**：若上述均未设置 `OPENCLAW_GATEWAY_BASE`，服务端 API 会返回 503，**不再**默认指向本站域名（避免 Next 对自己请求 `/__openclaw__/…` 却未反代到网关，导致「获取二维码失败」）。
+4. 非 production（本地 `next dev`）未设置时，默认 `http://127.0.0.1:18789`。
+5. `OPENCLAW_GATEWAY_TOKEN` 未设置时仍回退到开发用默认串；**生产环境请显式设置**，且必须与网关侧 `OPENCLAW_GATEWAY_TOKEN` / `gateway.auth.token` 一致。
+
+### 生产部署（同域或分域）
+
+- **分域**：`OPENCLAW_GATEWAY_BASE=https://网关公网域名`（含协议与端口，无尾斜杠），且容器/进程能访问该地址。
+- **与 Presenton 同域**（例如 `https://ppt.installall.cn`）：在 Ingress/Nginx 将路径前缀 **`/__openclaw__/`** 转发到 OpenClaw Gateway 后，可将 `OPENCLAW_GATEWAY_BASE` 设为 **`https://ppt.installall.cn`**；否则请勿填本站，应填网关实际可达地址。
+- 部署后可在**运行 Presenton 的服务器上**执行：  
+  `curl -sS -o /dev/null -w "%{http_code}\n" "$OPENCLAW_GATEWAY_BASE/__openclaw__/weixin/scan?token=$OPENCLAW_GATEWAY_TOKEN"`  
+  期望 **200** 且响应体为含 `atob(` 的 HTML；若为 **401**，检查 token 是否与网关一致。
+
+### 内网网关 + 外网只穿透 Presenton（无公网 IP）
+
+典型拓扑：**OpenClaw 网关**跑在内网某台机器/容器上（例如 `192.168.233.132:18789`），**无公网域名**；**Presenton** 与网关在同一内网可达；用户通过**内网穿透**访问 `https://ppt.installall.cn` 等公网入口，只看到 Presenton。
+
+要点：
+
+1. **`OPENCLAW_GATEWAY_BASE` 填内网可达地址**，不要填穿透后的公网域名（除非穿透规则也把 `/__openclaw__/` 反代到了网关）。  
+   示例：`OPENCLAW_GATEWAY_BASE=http://192.168.233.132:18789`（端口以网关实际映射为准，常见为 `18789`）。
+
+2. **发起扫码页请求的是 Presenton 服务端**（Next.js API Route），不是用户浏览器。因此只要 **跑 Presenton 的那台机/容器** 能 `curl` 通上述内网地址即可；用户浏览器**不需要**能直连网关。
+
+3. **Docker 里的 Presenton**：若网关 IP 是局域网另一台主机，容器必须能路由到该网段（例如与宿主机同桥、使用 `network_mode: host`、或在 compose 里加 `extra_hosts` / 静态路由）。在 **Presenton 容器内** 执行：  
+   `curl -sS -o /dev/null -w "%{http_code}\n" "http://192.168.233.132:18789/healthz"`  
+   应为 **200**。
+
+4. **`OPENCLAW_GATEWAY_TOKEN`** 必须与网关容器环境变量或 `gateway.auth.token` **完全一致**（与是否有公网无关）。
+
+5. **`NEXT_PUBLIC_OPENCLAW_GATEWAY_*`**：当前微信扫码流程主要由服务端 `/api/openclaw/weixin/*` 代理，一般**可不配**公网网关；若将来有浏览器直连网关的页面，再单独为穿透域名配置。
 
 ## 配置方法
 

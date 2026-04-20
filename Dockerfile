@@ -16,6 +16,18 @@ COPY servers/nextjs/package.json servers/nextjs/package-lock.json ./
 RUN npm ci
 
 COPY servers/nextjs/ ./
+
+# Optional: embed OpenClaw Weixin scan page on Presenton home (see OpenClawWeixinQrPanel.tsx)
+ARG NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE=
+ARG NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN=
+ARG NEXT_PUBLIC_OPENCLAW_WEIXIN_SCAN_URL=
+ENV NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE=${NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE}
+ENV NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN=${NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN}
+ENV NEXT_PUBLIC_OPENCLAW_WEIXIN_SCAN_URL=${NEXT_PUBLIC_OPENCLAW_WEIXIN_SCAN_URL}
+
+# 禁用构建时字体下载（容器内可能无法访问 Google Fonts）
+ENV NEXT_BUILD_NO_FONT_DOWNLOAD=1
+
 RUN npm run build && npm prune --omit=dev
 
 

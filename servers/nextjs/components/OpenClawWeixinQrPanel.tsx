@@ -116,9 +116,18 @@ export default function OpenClawWeixinQrPanel() {
           }, 2000);
         }
       } else {
+        let detail = "获取二维码失败";
+        try {
+          const errBody = (await response.json()) as { error?: string };
+          if (typeof errBody?.error === "string" && errBody.error.trim()) {
+            detail = errBody.error.trim();
+          }
+        } catch {
+          /* ignore */
+        }
         setQrData({
           status: "error",
-          message: "获取二维码失败",
+          message: detail,
         });
       }
     } catch (error) {

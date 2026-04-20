@@ -1,13 +1,24 @@
 import { NextResponse } from "next/server";
+import {
+  getOpenClawGatewayBaseForServer,
+  getOpenClawGatewayTokenForServer,
+  openClawGatewayBaseMissingMessage,
+} from "@/lib/openclaw-gateway-server-config";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-const OPENCLAW_GATEWAY_BASE = process.env.OPENCLAW_GATEWAY_BASE || process.env.NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE || "https://ppt.installall.cn";
-const OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || process.env.NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN || "openclaw-distributed-secret-key";
-
 export async function POST(request: Request) {
   try {
+    const OPENCLAW_GATEWAY_BASE = getOpenClawGatewayBaseForServer();
+    if (!OPENCLAW_GATEWAY_BASE) {
+      return NextResponse.json(
+        { status: "error", message: openClawGatewayBaseMissingMessage() },
+        { status: 503 },
+      );
+    }
+    const OPENCLAW_GATEWAY_TOKEN = getOpenClawGatewayTokenForServer();
+
     const { sessionKey } = await request.json();
 
     if (!sessionKey) {

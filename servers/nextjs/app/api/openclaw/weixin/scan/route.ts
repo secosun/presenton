@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
+import {
+  getOpenClawGatewayBaseForServer,
+  getOpenClawGatewayTokenForServer,
+  openClawGatewayBaseMissingMessage,
+} from "@/lib/openclaw-gateway-server-config";
 
-const OPENCLAW_GATEWAY_BASE = process.env.OPENCLAW_GATEWAY_BASE || process.env.NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE || "https://ppt.installall.cn";
-const OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || process.env.NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN || "openclaw-distributed-secret-key";
-
-export async function GET(request: Request) {
+export async function GET() {
   try {
+    const OPENCLAW_GATEWAY_BASE = getOpenClawGatewayBaseForServer();
+    if (!OPENCLAW_GATEWAY_BASE) {
+      return NextResponse.json({ error: openClawGatewayBaseMissingMessage() }, { status: 503 });
+    }
+    const OPENCLAW_GATEWAY_TOKEN = getOpenClawGatewayTokenForServer();
+
     // 代理请求到网关，token 只在服务端使用，前端不可见
     const targetUrl = `${OPENCLAW_GATEWAY_BASE}/__openclaw__/weixin/scan?token=${encodeURIComponent(OPENCLAW_GATEWAY_TOKEN)}`;
 

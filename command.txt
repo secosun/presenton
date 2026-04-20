@@ -1,0 +1,8 @@
+  4. 构建脚本 (build-split.sh)                                                                                                                                                                                      
+                                                                                                                                                                                                                    
+  # 1. 构建 Docling 服务
+  docker build -f Dockerfile.docling -t presenton_docling:latest .                                                                                                                                                  
+                                                                                                                                                                                                                    
+  # 2. 构建主应用镜像                                                                                                                                                                                               
+  docker build -f Dockerfile -t presenton_production:latest .                                                                                                                                                       
+                                                                          

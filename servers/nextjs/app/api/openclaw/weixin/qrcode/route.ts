@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-
-const OPENCLAW_GATEWAY_BASE = process.env.OPENCLAW_GATEWAY_BASE || process.env.NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE || "https://ppt.installall.cn";
-const OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || process.env.NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN || "openclaw-distributed-secret-key";
+import {
+  getOpenClawGatewayBaseForServer,
+  getOpenClawGatewayTokenForServer,
+  openClawGatewayBaseMissingMessage,
+} from "@/lib/openclaw-gateway-server-config";
 
 // 提取 base64 编码中的 JSON 数据
 function extractBootData(html: string) {
@@ -21,6 +23,18 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    const OPENCLAW_GATEWAY_BASE = getOpenClawGatewayBaseForServer();
+    if (!OPENCLAW_GATEWAY_BASE) {
+      return NextResponse.json(
+        { error: openClawGatewayBaseMissingMessage() },
+        {
+          status: 503,
+          headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+        },
+      );
+    }
+    const OPENCLAW_GATEWAY_TOKEN = getOpenClawGatewayTokenForServer();
+
     // 1. 请求网关扫码页面
     const targetUrl = `${OPENCLAW_GATEWAY_BASE}/__openclaw__/weixin/scan?token=${encodeURIComponent(OPENCLAW_GATEWAY_TOKEN)}`;
     const response = await fetch(targetUrl, { cache: "no-store" });
@@ -33,18 +47,27 @@ export async function GET() {
     // 检查 Gateway 响应状态
     if (!response.ok) {
       console.error("Gateway 扫码页请求失败:", response.status, html.substring(0, 100));
+      const hint =
+        response.status === 401
+          ? "（请核对 OPENCLAW_GATEWAY_TOKEN 与网关 gateway.auth / 环境变量是否一致）"
+          : "";
       return NextResponse.json(
-        { error: `网关服务异常 (${response.status})` },
-        { status: response.status, headers: noCacheHeaders }
+        { error: `网关服务异常 (${response.status})${hint}` },
+        { status: response.status, headers: noCacheHeaders },
       );
     }
 
     // 2. 提取二维码数据
     const bootData = extractBootData(html);
     if (!bootData || !bootData.qrDataUrl) {
+      const looksLikeSiteHtml = html.includes("<!DOCTYPE") && !html.includes("atob(");
+      const hint = looksLikeSiteHtml
+        ? "响应不是网关扫码页：请配置 OPENCLAW_GATEWAY_BASE 指向真实网关，或为同域部署增加 /__openclaw__/ → 网关 的反代。"
+        : "请核对网关插件与 OPENCLAW_GATEWAY_TOKEN。";
+      console.error("无法解析扫码页 boot 数据:", hint, html.substring(0, 200));
       return NextResponse.json(
-        { error: "无法获取二维码数据" },
-        { status: 502, headers: noCacheHeaders }
+        { error: `无法获取二维码数据。${hint}` },
+        { status: 502, headers: noCacheHeaders },
       );
     }
 

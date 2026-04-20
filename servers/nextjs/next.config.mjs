@@ -2,6 +2,9 @@
 const nextConfig = {
   reactStrictMode: false,
   distDir: ".next-build",
+
+  // 禁用构建时字体下载（容器内可能无法访问 Google Fonts）
+  optimizeFonts: false,
   
 
   // Rewrites for development - proxy font requests and API requests to FastAPI backend

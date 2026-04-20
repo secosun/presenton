@@ -212,6 +212,10 @@ Run Presenton directly in your browser — no installation, no setup required. S
     <code>NPM_REGISTRY</code> (default mirrors npmmirror; set to
     <code>https://registry.npmjs.org</code> if needed),
     <code>PIP_INDEX_URL</code>, and <code>INSTALL_OLLAMA</code>.
+    Optional Next.js embed for OpenClaw Weixin scan on the home page:
+    <code>NEXT_PUBLIC_OPENCLAW_WEIXIN_SCAN_URL</code> (full URL with <code>token=</code>),
+    or <code>NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE</code> plus
+    <code>NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN</code> (see <code>Dockerfile</code> <code>ARG</code>s).
     For the Docling sidecar image, see <code>Dockerfile.docling</code> build args
     including <code>TORCH_EXTRA_INDEX</code>.
     A broader <code>.dockerignore</code> reduces build context size (including the
