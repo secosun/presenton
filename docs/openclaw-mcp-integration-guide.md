@@ -2,6 +2,14 @@
 
 将 Presenton PPT 生成能力集成到 OpenClaw（或其他 AI Agent）的完整指南。
 
+## 与 openclawcluster 仓库（同 monorepo 时）
+
+若本机工作区同时包含 **openclawcluster**，下列文档与 **开发环境约定（含 `192.168.3.58:5000`）** 保持一致，并补充 **多 Agent PPT bind-mount 栈**：
+
+- `openclawcluster/docs/integrations/presenton-ppt-mcp.md` — OpenClaw 侧 MCP 片段与 **Agent `agent-private` 配置落点**
+- `openclawcluster/docs/integrations/multi-agent-ppt-pipeline.md` — 多角色 Agent + **`dev-ppt-pipeline`** 脚本
+- `openclawcluster/docs/development/ppt-multi-agent-and-presenton-archive.md` — **调试总索引**
+
 ---
 
 ## 一、集成概述
@@ -106,6 +114,14 @@ docker exec -d -w /app/servers/fastapi presenton_development_1 \
 |------|--------|------|
 | `--port` | 8001 | MCP Server 监听端口 |
 | `--name` | "Presenton API (OpenAPI)" | MCP 服务器名称 |
+
+**环境变量**（`servers/fastapi/mcp_server.py`）:
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `PRESENTON_API_BASE_URL` | `http://127.0.0.1:8000` | FastAPI 根地址（容器/Nginx 后请改为可达 URL，**勿尾斜杠**） |
+| `PRESENTON_HTTP_TIMEOUT` | `120` | 调用 FastAPI 的超时（秒），PPT 生成宜 ≥120 |
+| `MCP_HTTP_HOST` | `127.0.0.1` | MCP HTTP 监听地址；Docker 内需 `0.0.0.0` 时再覆盖 |
+| `MCP_UVICORN_RELOAD` | `0` | 设为 `1` 开启开发热重载；生产保持关闭 |
 
 **端口映射**：
 确保 `docker-compose.yml` 中包含 MCP 端口映射：
@@ -229,7 +245,9 @@ Presenton MCP Server 自动从 OpenAPI 规范暴露以下工具:
 
 | 工具名 | 功能 | 输入参数 |
 |--------|------|----------|
-| `materialize_presentation` | 生成 PPT（无 LLM） | `template`, `slides`, `export_as` |
+| `start_materialize_presentation` | 提交物化后台任务（推荐长耗时） | 与 `materialize_presentation` 相同；返回 `job_id` |
+| `get_materialize_job` | 查询任务状态/结果 | `job_id`（UUID） |
+| `materialize_presentation` | 同步生成 PPT（无 LLM） | `template`, `slides`, `export_as` |
 | `generate_presentation` | 生成 PPT（服务端 LLM） | `content`, `n_slides`, `template` |
 | `templates_list` | 获取模板列表 | 无 |
 

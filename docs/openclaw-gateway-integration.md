@@ -1,5 +1,9 @@
 # OpenClaw Gateway 集成配置文档
 
+## 与 openclawcluster 文档（同 monorepo 时）
+
+分布式 OpenClaw 开发、多 Agent PPT、Presenton **MCP** 与校验脚本见 **openclawcluster** 内 **`docs/development/ppt-multi-agent-and-presenton-archive.md`**（总索引）及 **`docs/integrations/presenton-ppt-mcp.md`**。
+
 ## 概述
 
 Presenton 与 OpenClaw Gateway 集成实现微信扫码绑定功能，支持 Agent 分布式通信。

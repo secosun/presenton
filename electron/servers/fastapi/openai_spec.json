@@ -1,32 +1,32 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "FastAPI",
+    "title": "Presenton API (materialize-only)",
     "version": "0.1.0"
   },
   "paths": {
-    "/api/v1/ppt/presentation/generate": {
+    "/api/v1/ppt/presentation/materialize/async": {
       "post": {
         "tags": ["Presentation"],
-        "summary": "Returns base URL of generated presentation's PDF or PPTX.",
-        "operationId": "generate_presentation",
+        "summary": "Start materialize in the background (returns job_id; poll GET .../materialize/jobs/{job_id}).",
+        "operationId": "start_materialize_presentation",
         "requestBody": {
           "content": {
-            "multipart/form-data": {
+            "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Body_generate_presentation_api_api_v1_ppt_presentation_generate_post"
+                "$ref": "#/components/schemas/MaterializePresentationRequest"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "Successful Response",
+          "202": {
+            "description": "Job accepted",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PresentationPathAndEditPath"
+                  "$ref": "#/components/schemas/MaterializeJobAccepted"
                 }
               }
             }
@@ -40,6 +40,39 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/ppt/presentation/materialize/jobs/{job_id}": {
+      "get": {
+        "tags": ["Presentation"],
+        "summary": "Poll materialize job status and result.",
+        "operationId": "get_materialize_job",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current job state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterializeJobStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown job_id"
           }
         }
       }
@@ -91,88 +124,10 @@
           }
         }
       }
-    },
-    "/api/v1/ppt/template-management/summary": {
-      "get": {
-        "tags": ["template-management"],
-        "summary": "Get all presentations with layout counts",
-        "description": "Returns a list of extra custom templates available for presenation creation.",
-        "operationId": "templates_list",
-        "responses": {
-          "200": {
-            "description": "Presentations summary retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetPresentationSummaryResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
     "schemas": {
-      "Body_generate_presentation_api_api_v1_ppt_presentation_generate_post": {
-        "properties": {
-          "content": {
-            "type": "string",
-            "title": "Content",
-            "description": "The content for generating the presentation"
-          },
-          "n_slides": {
-            "type": "integer",
-            "title": "N Slides",
-            "default": 8
-          },
-          "language": {
-            "type": "string",
-            "title": "Language",
-            "default": "English"
-          },
-          "template": {
-            "type": "string",
-            "title": "Template",
-            "default": "general"
-          },
-          "files": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string",
-                  "format": "binary"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Files"
-          },
-          "export_as": {
-            "type": "string",
-            "enum": ["pptx", "pdf"],
-            "title": "Export As",
-            "default": "pptx"
-          }
-        },
-        "type": "object",
-        "required": ["content"],
-        "title": "Body_generate_presentation_api_api_v1_ppt_presentation_generate_post"
-      },
       "MaterializeSlideItem": {
         "type": "object",
         "required": ["layout_id", "content"],
@@ -209,6 +164,48 @@
         },
         "title": "MaterializePresentationRequest"
       },
+      "MaterializeJobAccepted": {
+        "type": "object",
+        "required": ["job_id", "status"],
+        "properties": {
+          "job_id": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "enum": ["pending"] }
+        },
+        "title": "MaterializeJobAccepted"
+      },
+      "MaterializeJobStatusResponse": {
+        "type": "object",
+        "required": ["job_id", "status"],
+        "properties": {
+          "job_id": { "type": "string", "format": "uuid" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "completed", "failed"]
+          },
+          "created_at": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }]
+          },
+          "started_at": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }]
+          },
+          "completed_at": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }]
+          },
+          "result": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/PresentationPathAndEditPath" },
+              { "type": "null" }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              { "type": "object", "additionalProperties": true },
+              { "type": "null" }
+            ]
+          }
+        },
+        "title": "MaterializeJobStatusResponse"
+      },
       "PresentationPathAndEditPath": {
         "properties": {
           "presentation_id": {
@@ -217,7 +214,13 @@
           },
           "path": {
             "type": "string",
-            "title": "Path"
+            "title": "Path",
+            "description": "Container file path (e.g., /app_data/exports/xxx.pptx)"
+          },
+          "download_url": {
+            "type": "string",
+            "title": "Download URL",
+            "description": "Remote download URL via Nginx proxy (e.g., http://host:5000/exports/xxx.pptx)"
           },
           "edit_path": {
             "type": "string",
@@ -225,7 +228,7 @@
           }
         },
         "type": "object",
-        "required": ["presentation_id", "path", "edit_path"],
+        "required": ["presentation_id", "path", "download_url", "edit_path"],
         "title": "PresentationPathAndEditPath"
       },
       "HTTPValidationError": {
@@ -269,109 +272,6 @@
         "type": "object",
         "required": ["loc", "msg", "type"],
         "title": "ValidationError"
-      },
-      "GetPresentationSummaryResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "presentations": {
-            "items": {
-              "$ref": "#/components/schemas/PresentationSummary"
-            },
-            "type": "array",
-            "title": "Presentations"
-          },
-          "total_presentations": {
-            "type": "integer",
-            "title": "Total Presentations"
-          },
-          "total_layouts": {
-            "type": "integer",
-            "title": "Total Layouts"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Message"
-          }
-        },
-        "type": "object",
-        "required": ["success", "presentations", "total_presentations", "total_layouts"],
-        "title": "GetPresentationSummaryResponse"
-      },
-      "PresentationSummary": {
-        "properties": {
-          "presentation_id": {
-            "type": "string",
-            "title": "Presentation Id"
-          },
-          "layout_count": {
-            "type": "integer",
-            "title": "Layout Count"
-          },
-          "last_updated_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Updated At"
-          },
-          "template": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Template"
-          }
-        },
-        "type": "object",
-        "required": ["presentation_id", "layout_count"],
-        "title": "PresentationSummary"
-      },
-      "ErrorResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success",
-            "default": false
-          },
-          "detail": {
-            "type": "string",
-            "title": "Detail"
-          },
-          "error_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error Code"
-          }
-        },
-        "type": "object",
-        "required": ["detail"],
-        "title": "ErrorResponse"
       }
     }
   }

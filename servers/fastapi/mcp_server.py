@@ -1,13 +1,16 @@
 import sys
 import argparse
 import asyncio
+import json
+import os
 import traceback
+from pathlib import Path
 
 import httpx
 from fastmcp import FastMCP
-import json
 
-with open("openai_spec.json", "r") as f:
+_SPEC_DIR = Path(__file__).resolve().parent
+with open(_SPEC_DIR / "openai_spec.json", "r", encoding="utf-8") as f:
     openapi_spec = json.load(f)
 
 
@@ -30,8 +33,15 @@ async def main():
         args = parser.parse_args()
         print(f"DEBUG: Parsed args - port={args.port}")
 
-        # Create an HTTP client that the MCP server will use to call the API
-        api_client = httpx.AsyncClient(base_url="http://127.0.0.1:8000", timeout=60.0)
+        api_base = os.environ.get("PRESENTON_API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+        timeout_s = float(os.environ.get("PRESENTON_HTTP_TIMEOUT", "120"))
+        bind_host = os.environ.get("MCP_HTTP_HOST", "127.0.0.1")
+        uvicorn_reload = os.environ.get("MCP_UVICORN_RELOAD", "0").strip() in ("1", "true", "yes")
+
+        print(f"DEBUG: PRESENTON_API_BASE_URL -> {api_base} (timeout={timeout_s}s, bind={bind_host})")
+
+        # HTTP client used by generated MCP tools to call Presenton FastAPI
+        api_client = httpx.AsyncClient(base_url=api_base, timeout=timeout_s)
 
         # Build MCP server from OpenAPI
         print("DEBUG: Creating FastMCP server from OpenAPI spec...")
@@ -42,12 +52,11 @@ async def main():
         )
         print("DEBUG: MCP server created from OpenAPI successfully")
 
-        # Start the MCP server
-        uvicorn_config = {"reload": True}
-        print(f"DEBUG: Starting MCP server on host=127.0.0.1, port={args.port}")
+        uvicorn_config = {"reload": uvicorn_reload}
+        print(f"DEBUG: Starting MCP server on host={bind_host}, port={args.port}")
         await mcp.run_async(
             transport="http",
-            host="127.0.0.1",
+            host=bind_host,
             port=args.port,
             uvicorn_config=uvicorn_config,
         )

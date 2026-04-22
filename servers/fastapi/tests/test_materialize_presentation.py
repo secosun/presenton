@@ -59,7 +59,7 @@ def test_validate_slide_json_schema_empty_schema_ok():
 def test_validate_slide_json_schema_fail():
     with pytest.raises(HTTPException) as ei:
         validate_slide_json_schema(
-            "slide_a",
+            "general:general-intro-slide",
             {},
             {
                 "type": "object",
@@ -71,16 +71,17 @@ def test_validate_slide_json_schema_fail():
 
 
 def test_layout_structure_indices():
+    # Align ids with Presenton Next templates (general: + component layoutId).
     layout = PresentationLayoutModel(
         name="general",
         ordered=False,
         slides=[
-            SlideLayoutModel(id="slide_a", json_schema={}),
-            SlideLayoutModel(id="slide_b", json_schema={}),
+            SlideLayoutModel(id="general:general-intro-slide", json_schema={}),
+            SlideLayoutModel(id="general:basic-info-slide", json_schema={}),
         ],
     )
-    assert layout.get_slide_layout_index("slide_a") == 0
-    assert layout.get_slide_layout_index("slide_b") == 1
+    assert layout.get_slide_layout_index("general:general-intro-slide") == 0
+    assert layout.get_slide_layout_index("general:basic-info-slide") == 1
 
 
 def test_validate_presentation_template_name_builtin():

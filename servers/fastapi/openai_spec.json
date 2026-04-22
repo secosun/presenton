@@ -5,6 +5,78 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/ppt/presentation/materialize/async": {
+      "post": {
+        "tags": ["Presentation"],
+        "summary": "Start materialize in the background (returns job_id; poll GET .../materialize/jobs/{job_id}).",
+        "operationId": "start_materialize_presentation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterializePresentationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Job accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterializeJobAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ppt/presentation/materialize/jobs/{job_id}": {
+      "get": {
+        "tags": ["Presentation"],
+        "summary": "Poll materialize job status and result.",
+        "operationId": "get_materialize_job",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current job state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterializeJobStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown job_id"
+          }
+        }
+      }
+    },
     "/api/v1/ppt/presentation/materialize": {
       "post": {
         "tags": ["Presentation"],
@@ -91,6 +163,48 @@
           "theme": { "type": "object", "additionalProperties": true }
         },
         "title": "MaterializePresentationRequest"
+      },
+      "MaterializeJobAccepted": {
+        "type": "object",
+        "required": ["job_id", "status"],
+        "properties": {
+          "job_id": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "enum": ["pending"] }
+        },
+        "title": "MaterializeJobAccepted"
+      },
+      "MaterializeJobStatusResponse": {
+        "type": "object",
+        "required": ["job_id", "status"],
+        "properties": {
+          "job_id": { "type": "string", "format": "uuid" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "completed", "failed"]
+          },
+          "created_at": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }]
+          },
+          "started_at": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }]
+          },
+          "completed_at": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }]
+          },
+          "result": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/PresentationPathAndEditPath" },
+              { "type": "null" }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              { "type": "object", "additionalProperties": true },
+              { "type": "null" }
+            ]
+          }
+        },
+        "title": "MaterializeJobStatusResponse"
       },
       "PresentationPathAndEditPath": {
         "properties": {

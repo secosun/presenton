@@ -133,6 +133,15 @@ curl http://localhost:8001/health
 # 返回：{"status": "healthy", "service": "docling-service"}
 ```
 
+经 Nginx 统一入口（宿主机映射 **`:5000`**）探测 **FastAPI** 可用：
+
+```bash
+curl -sS "http://localhost:5000/api/v1/healthz"
+# 返回：{"ok":true,"status":"live","service":"presenton-fastapi"}
+```
+
+（与 OpenClaw **`dev-ppt-pipeline-verify.sh`** 默认 **`PRESENTON_HEALTH`** 一致。）
+
 ## 故障排查
 
 ### docling 服务不可用

@@ -10,6 +10,12 @@ from api.v1.mock.router import API_V1_MOCK_ROUTER
 app = FastAPI(lifespan=app_lifespan)
 
 
+@app.get("/api/v1/healthz", tags=["Health"])
+async def presenton_api_healthz():
+    """Liveness for Nginx :5000 → /api/v1/* → FastAPI (Agent 容器内 HTTP 探活)."""
+    return {"ok": True, "status": "live", "service": "presenton-fastapi"}
+
+
 # Routers
 app.include_router(API_V1_PPT_ROUTER)
 app.include_router(API_V1_WEBHOOK_ROUTER)
