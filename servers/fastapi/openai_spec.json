@@ -222,6 +222,11 @@
             "title": "Download URL",
             "description": "Remote download URL via Nginx proxy (e.g., http://host:5000/exports/xxx.pptx)"
           },
+          "download_url_public": {
+            "type": "string",
+            "title": "Public Download URL",
+            "description": "Same path as download_url with public HTTPS origin when PRESENTON_PUBLIC_EXPORT_BASE is set (optional)"
+          },
           "edit_path": {
             "type": "string",
             "title": "Edit Path"

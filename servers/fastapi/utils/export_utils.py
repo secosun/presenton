@@ -1,8 +1,10 @@
 import json
 import os
-import aiohttp
-from typing import Literal
 import uuid
+from typing import Literal
+from urllib.parse import urlparse
+
+import aiohttp
 from fastapi import HTTPException
 from pathvalidate import sanitize_filename
 
@@ -11,7 +13,6 @@ from models.presentation_and_path import PresentationAndPath
 from services.pptx_presentation_creator import PptxPresentationCreator
 from services.temp_file_service import TEMP_FILE_SERVICE
 from utils.asset_directory_utils import get_exports_directory
-import uuid
 
 # Presenton 服务的主机地址（用于构建远程下载 URL）
 PRESENTON_HOST = os.environ.get("PRESENTON_HOST", "192.168.3.58")
@@ -23,6 +24,22 @@ def build_download_url(container_path: str) -> str:
     # 容器路径 /app_data/exports/xxx.pptx → URL 路径 /exports/xxx.pptx
     file_name = os.path.basename(container_path)
     return f"http://{PRESENTON_HOST}:{PRESENTON_PORT}/exports/{file_name}"
+
+
+def build_public_download_url(internal_download_url: str) -> str | None:
+    """与内网 download_url 同 path，仅替换为公网 origin（无尾斜杠）。与 OpenClaw PRESENTON_PUBLIC_EXPORT_BASE 对齐。"""
+    raw = (
+        os.environ.get("PRESENTON_PUBLIC_EXPORT_BASE", "").strip()
+        or os.environ.get("PRESENTON_PUBLIC_BASE_URL", "").strip()
+    )
+    if not raw or not internal_download_url:
+        return None
+    base = raw.rstrip("/")
+    try:
+        p = urlparse(internal_download_url)
+        return f"{base}{p.path}" + (f"?{p.query}" if p.query else "")
+    except Exception:
+        return None
 
 
 async def export_presentation(
@@ -57,10 +74,12 @@ async def export_presentation(
         )
         pptx_creator.save(pptx_path)
 
+        internal = build_download_url(pptx_path)
         return PresentationAndPath(
             presentation_id=presentation_id,
             path=pptx_path,
-            download_url=build_download_url(pptx_path),
+            download_url=internal,
+            download_url_public=build_public_download_url(internal),
         )
     else:
         async with aiohttp.ClientSession() as session:
@@ -73,8 +92,10 @@ async def export_presentation(
             ) as response:
                 response_json = await response.json()
 
+        internal = build_download_url(response_json["path"])
         return PresentationAndPath(
             presentation_id=presentation_id,
             path=response_json["path"],
-            download_url=build_download_url(response_json["path"]),
+            download_url=internal,
+            download_url_public=build_public_download_url(internal),
         )

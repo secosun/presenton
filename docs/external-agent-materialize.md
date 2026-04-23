@@ -122,7 +122,9 @@ flowchart LR
 与现有生成成功一致，使用 **`PresentationPathAndEditPath`**（或同结构 JSON）：
 
 - `presentation_id`
-- `path`（导出文件路径）
+- `path`（容器内导出文件路径）
+- `download_url`（经 Nginx 的下载 URL，默认内网 origin：`PRESENTON_HOST` / `PRESENTON_PORT`，见 `utils/export_utils.py`）
+- `download_url_public`（可选）与 `download_url` **同 path**（含 query），仅将 origin 换为公网 HTTPS。在部署环境设置 **`PRESENTON_PUBLIC_EXPORT_BASE`** 或 **`PRESENTON_PUBLIC_BASE_URL`**（无尾斜杠，如 `https://ppt.example.com`）后由服务端自动填充；未设置时为 `null`。与 OpenClaw 分布式栈中同名环境变量对齐。
 - `edit_path`（如 `/presentation?id={uuid}`）
 
 ### 4.5 错误码（建议）

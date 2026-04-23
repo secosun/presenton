@@ -16,6 +16,8 @@ async def mock_presentation_generation_completed():
         PresentationPathAndEditPath(
             presentation_id=uuid.uuid4(),
             path="/app_data/exports/test.pdf",
+            download_url="http://127.0.0.1:5000/exports/test.pdf",
+            download_url_public=None,
             edit_path="/presentation?id=123",
         )
     ]

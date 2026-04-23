@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import HTTPException
 
+from utils.export_utils import build_download_url, build_public_download_url
 from models.materialize_presentation_request import (
     MaterializePresentationRequest,
     MaterializeSlideItem,
@@ -107,3 +108,31 @@ def test_validate_presentation_template_name_custom_missing():
             )
         )
     assert ei.value.status_code == 400
+
+
+def test_build_public_download_url_replaces_origin(monkeypatch):
+    monkeypatch.setenv("PRESENTON_PUBLIC_EXPORT_BASE", "https://ppt.example.com")
+    internal = "http://192.168.3.58:5000/exports/E2E%20MCP%20Probe.pptx"
+    assert build_public_download_url(internal) == (
+        "https://ppt.example.com/exports/E2E%20MCP%20Probe.pptx"
+    )
+
+
+def test_build_public_download_url_alt_env_name(monkeypatch):
+    monkeypatch.delenv("PRESENTON_PUBLIC_EXPORT_BASE", raising=False)
+    monkeypatch.setenv("PRESENTON_PUBLIC_BASE_URL", "https://ppt.example.com")
+    internal = "http://10.0.0.1:5000/exports/foo.pptx"
+    assert build_public_download_url(internal) == "https://ppt.example.com/exports/foo.pptx"
+
+
+def test_build_public_download_url_unset_env(monkeypatch):
+    monkeypatch.delenv("PRESENTON_PUBLIC_EXPORT_BASE", raising=False)
+    monkeypatch.delenv("PRESENTON_PUBLIC_BASE_URL", raising=False)
+    assert build_public_download_url("http://x/exports/a.pptx") is None
+
+
+def test_build_download_url_uses_presenton_host(monkeypatch):
+    monkeypatch.setenv("PRESENTON_HOST", "10.0.0.2")
+    monkeypatch.setenv("PRESENTON_PORT", "8080")
+    u = build_download_url("/app_data/exports/My%20File.pptx")
+    assert u == "http://10.0.0.2:8080/exports/My%20File.pptx"
