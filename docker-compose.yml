@@ -67,6 +67,7 @@ services:
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-openclaw-distributed-secret-key}
       - NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE=${NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE:-http://192.168.3.58:18789}
       - NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN=${NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN:-openclaw-distributed-secret-key}
+      - PRESENTON_PUBLIC_EXPORT_BASE=${PRESENTON_PUBLIC_EXPORT_BASE:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -125,6 +126,7 @@ services:
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-openclaw-distributed-secret-key}
       - NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE=${NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE:-http://192.168.3.58:18789}
       - NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN=${NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN:-openclaw-distributed-secret-key}
+      - PRESENTON_PUBLIC_EXPORT_BASE=${PRESENTON_PUBLIC_EXPORT_BASE:-}
     depends_on:
       - docling-service
     networks:
@@ -178,8 +180,8 @@ services:
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-openclaw-distributed-secret-key}
       - NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE=${NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE:-http://192.168.3.58:18789}
       - NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN=${NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN:-openclaw-distributed-secret-key}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      # 可选：物化/导出 JSON 中的 download_url_public（与 OpenClaw PRESENTON_PUBLIC_EXPORT_BASE 同名）
+      - PRESENTON_PUBLIC_EXPORT_BASE=${PRESENTON_PUBLIC_EXPORT_BASE:-}
     depends_on:
       - docling-service
     networks:
@@ -236,6 +238,7 @@ services:
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-openclaw-distributed-secret-key}
       - NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE=${NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE:-http://192.168.3.58:18789}
       - NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN=${NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN:-openclaw-distributed-secret-key}
+      - PRESENTON_PUBLIC_EXPORT_BASE=${PRESENTON_PUBLIC_EXPORT_BASE:-}
     depends_on:
       - docling-service
     networks:

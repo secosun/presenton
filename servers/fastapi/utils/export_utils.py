@@ -14,16 +14,19 @@ from services.pptx_presentation_creator import PptxPresentationCreator
 from services.temp_file_service import TEMP_FILE_SERVICE
 from utils.asset_directory_utils import get_exports_directory
 
-# Presenton 服务的主机地址（用于构建远程下载 URL）
-PRESENTON_HOST = os.environ.get("PRESENTON_HOST", "192.168.3.58")
-PRESENTON_PORT = os.environ.get("PRESENTON_PORT", "5000")
+def _presenton_export_origin() -> tuple[str, str]:
+    """内网导出 URL 的 host:port（每次调用读取环境变量，便于测试与无需重载进程改配置）。"""
+    host = os.environ.get("PRESENTON_HOST", "192.168.3.58")
+    port = os.environ.get("PRESENTON_PORT", "5000")
+    return host, port
 
 
 def build_download_url(container_path: str) -> str:
     """将容器路径转换为远程下载 URL"""
     # 容器路径 /app_data/exports/xxx.pptx → URL 路径 /exports/xxx.pptx
     file_name = os.path.basename(container_path)
-    return f"http://{PRESENTON_HOST}:{PRESENTON_PORT}/exports/{file_name}"
+    host, port = _presenton_export_origin()
+    return f"http://{host}:{port}/exports/{file_name}"
 
 
 def build_public_download_url(internal_download_url: str) -> str | None:
