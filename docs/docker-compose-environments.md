@@ -17,6 +17,69 @@ GPU 变体在 compose 中通过 `deploy.resources.reservations.devices` 申请 G
 
 ---
 
+## 日常启动（使用手册 · OpenClaw / 物化联调）
+
+仓库根 `docker-compose.yml` 中 **`production`、`production-gpu`、`development`、`development-gpu` 均在宿主机映射 `5000:80`**。若执行**无服务名**的：
+
+```bash
+docker compose up -d
+# 或
+docker-compose up -d
+```
+
+Compose 会尝试**并行拉起多套主应用**，导致 **5000 端口冲突**或仅有一套实际对外，排障困难。**请显式指定要跑的一套栈。**
+
+### 推荐：开发栈（源码挂载 + Docling）
+
+与 **OpenClaw 多 Agent PPT 联调**、本仓库 **`Dockerfile.dev`** 场景一致时，在仓库根执行：
+
+```bash
+cd /path/to/presenton
+# 首次：复制 .env.example 为 .env，按需填写 LLM、DATABASE_URL、OPENCLAW_* 等
+docker compose down
+docker compose up -d docling-service development
+```
+
+使用 **Compose V1** 时：
+
+```bash
+docker-compose down
+docker-compose up -d docling-service development
+```
+
+- **`docling-service`**：FastAPI 物化链路依赖的 Docling 侧car；**须与主应用一并启动**。
+- **`development`**：Next `dev` + FastAPI `--reload` + **`.:/app`** 挂载，改代码即生效。
+
+### 环境变量（`.env` 建议项）
+
+| 变量 | 说明 |
+|------|------|
+| **`CAN_CHANGE_KEYS`** | Compose 模板会引用；未用 UI 改密钥时可设为空 **`CAN_CHANGE_KEYS=`**，避免 “variable is not set” 警告。 |
+| **`PRESENTON_PUBLIC_EXPORT_BASE`** | 可选；公网 HTTPS **origin**（**无尾斜杠**），如 `https://ppt.example.com`。设置后物化/导出 JSON 会多字段 **`download_url_public`**（与内网 **`download_url`** 同 path）。与 OpenClaw **`PRESENTON_PUBLIC_EXPORT_BASE`** 同名，便于双栈对齐。别名：**`PRESENTON_PUBLIC_BASE_URL`**。 |
+| **`OPENCLAW_GATEWAY_BASE` / `OPENCLAW_GATEWAY_TOKEN`** | Presenton 容器访问 OpenClaw 网关（微信扫码等）；默认值见 `.env.example`。 |
+
+内网下载 URL 仍由 **`PRESENTON_HOST`**、**`PRESENTON_PORT`**（默认 `192.168.3.58:5000`）参与生成，见 `servers/fastapi/utils/export_utils.py`。
+
+### 生产栈（仅示例）
+
+需要不可变镜像、不挂载整仓时：
+
+```bash
+docker compose up -d docling-service production
+```
+
+GPU 变体将上述主服务名换成 **`development-gpu`** 或 **`production-gpu`** 即可（仍**只选其一**，避免重复占 5000）。
+
+### 首轮物化较慢
+
+**冷启动**后第一次走物化时，Next 侧可能触发大量编译，异步物化在 **180s** 内未完成属常见现象；**再触发一次**或等待编译结束后再测即可。
+
+### 与 OpenClaw 联调自检
+
+OpenClaw 仓库根：**`PRESENTON_REQUIRED=1 ./scripts/dev-ppt-pipeline-verify.sh`**（须 Agent 容器内 MCP URL 指向本 Presenton 入口，如 `http://192.168.3.58:5000/mcp`）。
+
+---
+
 ## 镜像构建差异
 
 | 项目 | **production**（`Dockerfile`） | **development**（`Dockerfile.dev`） |
