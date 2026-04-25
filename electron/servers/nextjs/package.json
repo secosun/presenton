@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev ",
-    "build": "next build",
-    "start": "next start",
+    "dev": "NEXT_DIST_DIR=.next next dev",
+    "build": "NEXT_DIST_DIR=.next-build next build",
+    "start": "NEXT_DIST_DIR=.next-build next start",
     "lint": "next lint"
   },
   "dependencies": {

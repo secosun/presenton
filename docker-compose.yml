@@ -182,6 +182,8 @@ services:
       - NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN=${NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN:-openclaw-distributed-secret-key}
       # 可选：物化/导出 JSON 中的 download_url_public（与 OpenClaw PRESENTON_PUBLIC_EXPORT_BASE 同名）
       - PRESENTON_PUBLIC_EXPORT_BASE=${PRESENTON_PUBLIC_EXPORT_BASE:-}
+      # true：宿主机先执行 servers/nextjs 下 npm ci && npm run build，容器内用 next start（跳过容器 npm install 与 dev 编译）
+      - PRESENTON_NEXT_PREBUILT=${PRESENTON_NEXT_PREBUILT:-}
     depends_on:
       - docling-service
     networks:
@@ -239,6 +241,7 @@ services:
       - NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE=${NEXT_PUBLIC_OPENCLAW_GATEWAY_BASE:-http://192.168.3.58:18789}
       - NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN=${NEXT_PUBLIC_OPENCLAW_GATEWAY_TOKEN:-openclaw-distributed-secret-key}
       - PRESENTON_PUBLIC_EXPORT_BASE=${PRESENTON_PUBLIC_EXPORT_BASE:-}
+      - PRESENTON_NEXT_PREBUILT=${PRESENTON_NEXT_PREBUILT:-}
     depends_on:
       - docling-service
     networks:

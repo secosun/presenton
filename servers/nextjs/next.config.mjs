@@ -1,7 +1,8 @@
 
+// 开发 (next dev) 用 .next，避免与预编译/生产的 .next-build 混用导致 /_next/static/... 404
 const nextConfig = {
   reactStrictMode: false,
-  distDir: ".next-build",
+  distDir: process.env.NEXT_DIST_DIR || ".next",
 
   // 禁用构建时字体下载（容器内可能无法访问 Google Fonts）
   optimizeFonts: false,

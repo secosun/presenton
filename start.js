@@ -14,6 +14,11 @@ const nextjsDir = join(__dirname, "servers/nextjs");
 const args = process.argv.slice(2);
 const hasDevArg = args.includes("--dev") || args.includes("-d");
 const isDev = hasDevArg;
+const nextPrebuilt =
+  process.env.PRESENTON_NEXT_PREBUILT === "true" ||
+  process.env.PRESENTON_NEXT_PREBUILT === "1";
+/** 开发容器内仍跑 FastAPI --reload，但前端用预构建 .next + next start（宿主机需先 npm ci && npm run build）。 */
+const useNextDevServer = isDev && !nextPrebuilt;
 const canChangeKeys = process.env.CAN_CHANGE_KEYS !== "false";
 
 const fastapiPort = 8000;
@@ -148,11 +153,12 @@ const startServers = async () => {
     console.error("App MCP process failed to start:", err);
   });
 
+  const nextDistDir = useNextDevServer ? ".next" : ".next-build";
   const nextjsProcess = spawn(
     "npm",
     [
       "run",
-      isDev ? "dev" : "start",
+      useNextDevServer ? "dev" : "start",
       "--",
       "-H",
       "127.0.0.1",
@@ -162,7 +168,7 @@ const startServers = async () => {
     {
       cwd: nextjsDir,
       stdio: "inherit",
-      env: process.env,
+      env: { ...process.env, NEXT_DIST_DIR: nextDistDir },
     }
   );
 
@@ -222,8 +228,12 @@ const startNginx = () => {
 };
 
 const main = async () => {
-  if (isDev) {
+  if (useNextDevServer) {
     await setupNodeModules();
+  } else if (isDev && nextPrebuilt) {
+    console.log(
+      "PRESENTON_NEXT_PREBUILT: 跳过容器内 npm install；请在宿主机 servers/nextjs 执行 npm ci && npm run build，并保证与容器挂载同一目录。",
+    );
   }
 
   if (canChangeKeys) {

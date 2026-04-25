@@ -2,7 +2,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 
 const nextConfig = {
   reactStrictMode: false,
-  distDir: ".next-build",
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // This Next.js app is always bundled for Electron, so we can
   // unconditionally use static export.
   output: "export",
