@@ -142,3 +142,17 @@ def get_codex_model_env():
 
 def get_migrate_database_on_startup_env():
     return os.getenv("MIGRATE_DATABASE_ON_STARTUP")
+
+
+def get_nextjs_base_url() -> str:
+    """Nginx/Next 入口（同容器内建议 http://127.0.0.1 无端口，走 80 代理到 Next）。"""
+    return os.environ.get("PRESENTON_NEXTJS_BASE_URL", "http://127.0.0.1").rstrip("/")
+
+
+def get_nextjs_request_timeout_seconds() -> float:
+    """拉取 /api/template 时 Next 会跑 headless，默认 300s。"""
+    raw = os.environ.get("PRESENTON_NEXTJS_HTTP_TIMEOUT", "300")
+    try:
+        return max(1.0, float(raw))
+    except ValueError:
+        return 300.0

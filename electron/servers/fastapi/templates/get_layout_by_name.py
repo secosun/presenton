@@ -2,11 +2,14 @@ import aiohttp
 from fastapi import HTTPException
 
 from templates.presentation_layout import PresentationLayoutModel
+from utils.get_env import get_nextjs_base_url, get_nextjs_request_timeout_seconds
 
 
 async def get_layout_by_name(layout_name: str) -> PresentationLayoutModel:
-    url = f"http://localhost/api/template?group={layout_name}"
-    async with aiohttp.ClientSession() as session:
+    base = get_nextjs_base_url()
+    url = f"{base}/api/template?group={layout_name}"
+    t = aiohttp.ClientTimeout(total=get_nextjs_request_timeout_seconds())
+    async with aiohttp.ClientSession(timeout=t) as session:
         async with session.get(url) as response:
             if response.status != 200:
                 error_text = await response.text()
