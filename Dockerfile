@@ -84,7 +84,7 @@ RUN HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= http_proxy= https_proxy= all_proxy= \
     alembic aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \
     pathvalidate pdfplumber chromadb sqlmodel jsonschema \
     anthropic google-genai openai fastmcp dirtyjson 'httpx[socks]' \
-    python-pptx nltk redis
+    python-pptx nltk redis rq
 
 COPY --from=nextjs-builder /app/servers/nextjs /app/servers/nextjs
 

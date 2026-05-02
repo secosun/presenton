@@ -112,6 +112,8 @@
 
 其它列均为加强能力或运维/联调。
 
+**异步物化实现**：`/materialize/async` 现在采用 **RQ + Redis + DB job 表**。API 写入 `materialize_jobs` 后把任务投递到 Redis 队列；RQ worker 执行同一套 `materialize_presentation_core` 写库与导出逻辑；轮询接口只读取 DB，因此服务重启后仍可恢复任务状态。容器默认读取 `PRESENTON_REDIS_URL`、`PRESENTON_MATERIALIZE_QUEUE`、`PRESENTON_MATERIALIZE_JOB_TIMEOUT`，并通过 `PRESENTON_START_RQ_WORKER` 控制是否在应用容器内启动一个 worker。
+
 ---
 
 ## 7. 与 Electron 后端的差异
@@ -126,6 +128,18 @@
 - [openclaw-mcp-integration-guide.md](./openclaw-mcp-integration-guide.md) — OpenClaw 侧 MCP 配置、URL、Nginx 关系。  
 - [external-agent-materialize.md](./external-agent-materialize.md) — 外部 Agent 物化接口、与 MCP 物化操作对应关系。  
 - [service-architecture.md](./service-architecture.md) — 服务端口与职责概览。
+
+### 8.1 验证 MCP tools/list 与 OpenClaw `tools.allow`（Nginx/上游已就绪时）
+
+在仓库根目录，依赖 **Node 18+**（无额外 npm 包）：
+
+```bash
+PRESENTON_MCP_URL="http://127.0.0.1:5000/mcp" node scripts/verify-presenton-mcp-allow.mjs
+# 与本地 openclaw.json（含 tools.allow 中的 presenton__*）对照：
+OPENCLAW_ALLOW_PATH=/path/to/openclaw.json PRESENTON_MCP_URL="http://192.168.3.58:5000/mcp" node scripts/verify-presenton-mcp-allow.mjs
+```
+
+若 Nginx 返回 **502**，脚本会提示先起稳 Presenton/MCP 上游后再测。
 
 ---
 

@@ -4,8 +4,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlmodel import SQLModel
 
 from utils.export_utils import build_download_url, build_public_download_url
+from models.sql.materialize_job import MaterializeJobModel
 from models.materialize_presentation_request import (
     MaterializePresentationRequest,
     MaterializeSlideItem,
@@ -17,6 +20,7 @@ from utils.materialize_helpers import (
     validate_slide_json_schema,
 )
 from utils.template_validation import validate_presentation_template_name
+from services.materialize_job_store import MaterializeJobStore
 
 
 def test_materialize_outline_line_prefers_summary():
@@ -136,3 +140,39 @@ def test_build_download_url_uses_presenton_host(monkeypatch):
     monkeypatch.setenv("PRESENTON_PORT", "8080")
     u = build_download_url("/app_data/exports/My%20File.pptx")
     assert u == "http://10.0.0.2:8080/exports/My%20File.pptx"
+
+
+def test_materialize_job_store_persists_status(tmp_path):
+    async def scenario():
+        engine = create_async_engine(
+            f"sqlite+aiosqlite:///{tmp_path / 'jobs.db'}",
+            connect_args={"check_same_thread": False},
+        )
+        async with engine.begin() as conn:
+            await conn.run_sync(
+                lambda sync_conn: SQLModel.metadata.create_all(
+                    sync_conn,
+                    tables=[MaterializeJobModel.__table__],
+                )
+            )
+
+        session_maker = async_sessionmaker(engine, expire_on_commit=False)
+        async with session_maker() as session:
+            store = MaterializeJobStore(session)
+            await store.create("job-1", {"template": "general"})
+            await store.attach_queue_job("job-1", "rq-1")
+
+        async with session_maker() as session:
+            store = MaterializeJobStore(session)
+            await store.mark_running("job-1")
+            await store.mark_completed("job-1", {"path": "/tmp/a.pptx"})
+            rec = await store.get("job-1")
+
+        assert rec is not None
+        assert rec["status"] == "completed"
+        assert rec["rq_job_id"] == "rq-1"
+        assert rec["result"] == {"path": "/tmp/a.pptx"}
+        assert rec["started_at"]
+        assert rec["completed_at"]
+
+    asyncio.run(scenario())

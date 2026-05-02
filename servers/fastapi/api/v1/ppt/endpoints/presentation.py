@@ -1,4 +1,3 @@
-import asyncio
 import os
 import uuid
 from typing import Annotated, List, Literal
@@ -29,8 +28,9 @@ from utils.materialize_helpers import (
 )
 from utils.template_validation import validate_presentation_template_name
 from utils.export_utils import export_presentation
-from services.database import async_session_maker, get_async_session
-from services.materialize_job_store import get_materialize_job_store
+from services.database import get_async_session
+from services.materialize_job_queue import enqueue_materialize_job
+from services.materialize_job_store import MaterializeJobStore
 from services.temp_file_service import TEMP_FILE_SERVICE
 from services.concurrent_service import CONCURRENT_SERVICE
 from models.sql.presentation import PresentationModel
@@ -151,39 +151,6 @@ async def materialize_presentation_core(
     )
 
 
-def _http_error_payload(exc: HTTPException) -> dict:
-    d = exc.detail
-    if isinstance(d, dict):
-        return {"detail": d, "status_code": exc.status_code}
-    if isinstance(d, list):
-        return {"detail": d, "status_code": exc.status_code}
-    return {"detail": str(d), "status_code": exc.status_code}
-
-
-async def _materialize_job_runner(job_id: str, payload: dict) -> None:
-    store = get_materialize_job_store()
-    try:
-        await store.mark_running(job_id)
-        req = MaterializePresentationRequest.model_validate(payload)
-        async with async_session_maker() as sql_session:
-            response = await materialize_presentation_core(sql_session, req)
-        result_dict = response.model_dump(mode="json")
-        await store.mark_completed(job_id, result_dict)
-        CONCURRENT_SERVICE.run_task(
-            None,
-            WebhookService.send_webhook,
-            WebhookEvent.PRESENTATION_GENERATION_COMPLETED,
-            result_dict,
-        )
-    except HTTPException as exc:
-        await store.mark_failed(job_id, _http_error_payload(exc))
-    except Exception as exc:  # noqa: BLE001
-        await store.mark_failed(
-            job_id,
-            {"detail": str(exc), "status_code": 500},
-        )
-
-
 @PRESENTATION_ROUTER.get("/all", response_model=List[PresentationWithSlides])
 async def get_all_presentations(sql_session: AsyncSession = Depends(get_async_session)):
     presentations_with_slides = []
@@ -289,12 +256,25 @@ async def export_presentation_as_pptx_or_pdf(
 )
 async def start_materialize_presentation_job(
     request: MaterializePresentationRequest,
+    sql_session: AsyncSession = Depends(get_async_session),
 ):
     """Enqueue materialize; poll GET .../materialize/jobs/{job_id} until completed or failed."""
     job_id = str(uuid.uuid4())
-    store = get_materialize_job_store()
-    await store.create(job_id, request.model_dump(mode="json"))
-    asyncio.create_task(_materialize_job_runner(job_id, request.model_dump(mode="json")))
+    payload = request.model_dump(mode="json")
+    store = MaterializeJobStore(sql_session)
+    await store.create(job_id, payload)
+    try:
+        rq_job_id = enqueue_materialize_job(job_id, payload)
+    except Exception as exc:  # noqa: BLE001
+        await store.mark_failed(
+            job_id,
+            {"detail": f"failed to enqueue materialize job: {exc!s}", "status_code": 503},
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="failed to enqueue materialize job",
+        ) from exc
+    await store.attach_queue_job(job_id, rq_job_id)
     return MaterializeJobAccepted(job_id=uuid.UUID(job_id))
 
 
@@ -302,8 +282,11 @@ async def start_materialize_presentation_job(
     "/materialize/jobs/{job_id}",
     response_model=MaterializeJobStatusResponse,
 )
-async def get_materialize_job_status(job_id: uuid.UUID):
-    rec = await get_materialize_job_store().get(str(job_id))
+async def get_materialize_job_status(
+    job_id: uuid.UUID,
+    sql_session: AsyncSession = Depends(get_async_session),
+):
+    rec = await MaterializeJobStore(sql_session).get(str(job_id))
     if not rec:
         raise HTTPException(status_code=404, detail="job not found")
     result = None

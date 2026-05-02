@@ -153,6 +153,25 @@ const startServers = async () => {
     console.error("App MCP process failed to start:", err);
   });
 
+  const startRqWorker = process.env.PRESENTON_START_RQ_WORKER !== "false";
+  let rqWorkerProcess = null;
+  if (startRqWorker) {
+    rqWorkerProcess = spawn(
+      "python",
+      ["-m", "workers.materialize_worker"],
+      {
+        cwd: fastapiDir,
+        stdio: "inherit",
+        env: process.env,
+      }
+    );
+    rqWorkerProcess.on("error", (err) => {
+      console.error("Materialize RQ worker failed to start:", err);
+    });
+  } else {
+    console.log("Materialize RQ worker disabled (PRESENTON_START_RQ_WORKER=false).");
+  }
+
   const nextDistDir = useNextDevServer ? ".next" : ".next-build";
   const nextjsProcess = spawn(
     "npm",
@@ -195,6 +214,11 @@ const startServers = async () => {
     new Promise((resolve) => fastApiProcess.on("exit", resolve)),
     new Promise((resolve) => nextjsProcess.on("exit", resolve)),
   ];
+  if (rqWorkerProcess) {
+    exitWatchers.push(
+      new Promise((resolve) => rqWorkerProcess.on("exit", resolve))
+    );
+  }
   if (ollamaProcess) {
     exitWatchers.push(
       new Promise((resolve) => ollamaProcess.on("exit", resolve))
