@@ -30,7 +30,7 @@ RUN HTTP_PROXY= HTTPS_PROXY= ALL_PROXY= http_proxy= https_proxy= all_proxy= \
   pip install --retries 15 --default-timeout=3600 --no-cache-dir \
     -i "${PIP_INDEX_URL}" --extra-index-url "${TORCH_EXTRA_INDEX}" \
     --trusted-host pypi.org --trusted-host pypi.tuna.tsinghua.edu.cn --trusted-host mirrors.aliyun.com \
-    docling
+    docling "fastapi>=0.100" "uvicorn[standard]>=0.22" python-multipart
 
 WORKDIR /app
 
