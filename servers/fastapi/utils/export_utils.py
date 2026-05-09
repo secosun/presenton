@@ -23,7 +23,7 @@ def _presenton_export_origin() -> tuple[str, str]:
 
 
 def build_download_url(container_path: str) -> str:
-    """将容器路径转换为远程下载 URL"""
+    """将容器路径转换为 **内网** 可访问的下载 URL（集成方负责转公网，如 OpenClaw LangGraph 存储 agent）。"""
     # 容器路径 /app_data/exports/xxx.pptx → URL 路径 /exports/xxx.pptx
     file_name = os.path.basename(container_path)
     host, port = _presenton_export_origin()
@@ -31,7 +31,7 @@ def build_download_url(container_path: str) -> str:
 
 
 def build_public_download_url(internal_download_url: str) -> str | None:
-    """与内网 download_url 同 path，仅替换为公网 origin（无尾斜杠）。与 OpenClaw PRESENTON_PUBLIC_EXPORT_BASE 对齐。"""
+    """可选：与内网 download_url 同 path，换公网 origin。可不配置 Presenton 公网 env，由 LangGraph 存储 agent 统一转换。"""
     raw = (
         os.environ.get("PRESENTON_PUBLIC_EXPORT_BASE", "").strip()
         or os.environ.get("PRESENTON_PUBLIC_BASE_URL", "").strip()
